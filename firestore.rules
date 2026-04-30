@@ -28,19 +28,23 @@ service cloud.firestore {
     }
 
     function getUserData() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+      let userPath = /databases/$(database)/documents/users/$(request.auth.uid);
+      return exists(userPath) ? get(userPath).data : null;
     }
 
     function isOrgMember(orgId) {
-      return isSignedIn() && isEmailVerified() && getUserData().orgId == orgId;
+      let userData = getUserData();
+      return isSignedIn() && isEmailVerified() && userData != null && userData.orgId == orgId;
     }
 
     function isOrgOwner(orgId) {
-      return isOrgMember(orgId) && getUserData().role == 'owner';
+      let userData = getUserData();
+      return isOrgMember(orgId) && userData.role == 'owner';
     }
 
     function isOrgAdmin(orgId) {
-      return isOrgMember(orgId) && (getUserData().role == 'owner' || getUserData().role == 'admin');
+      let userData = getUserData();
+      return isOrgMember(orgId) && (userData.role == 'owner' || userData.role == 'admin');
     }
 
     // --- Validations ---
@@ -53,8 +57,7 @@ service cloud.firestore {
     }
 
     function isValidUserProfile(data) {
-      return data.keys().hasAll(['email', 'orgId', 'role'])
-        && data.email is string
+      return data.email is string
         && data.orgId is string
         && data.role in ['owner', 'admin', 'cashier'];
     }
@@ -81,21 +84,30 @@ service cloud.firestore {
 
     // Users (Profiles)
     match /users/{userId} {
-      allow list: if isSignedIn() && isEmailVerified() && getUserData().orgId == resource.data.orgId;
-      allow get: if isSignedIn() && (request.auth.uid == userId || (isEmailVerified() && getUserData().orgId == resource.data.orgId));
-      allow create: if isSignedIn() && isValidId(userId) && (
-        (request.auth.uid == userId || isOrgAdmin(incoming().orgId))
-      ) && isValidUserProfile(incoming()) && incoming().createdAt == request.time;
+      allow list: if isSignedIn() && (
+        (resource.data.email.lower() == request.auth.token.email.lower()) ||
+        (getUserData() != null && getUserData().orgId == resource.data.orgId)
+      );
+      allow get: if isSignedIn() && (
+        request.auth.uid == userId || 
+        (resource.data.email.lower() == request.auth.token.email.lower()) ||
+        (getUserData() != null && getUserData().orgId == resource.data.orgId)
+      );
+      allow create: if isSignedIn() && (
+        request.auth.uid == userId || (getUserData() != null && isOrgAdmin(incoming().orgId))
+      ) && isValidUserProfile(incoming());
       
       allow update: if isSignedIn() && (
         (request.auth.uid == userId && incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'photoURL'])) ||
-        (isOrgAdmin(existing().orgId) && isValidUserProfile(incoming()))
-      ) 
-      && incoming().email == existing().email 
-      && (existing().role == 'owner' || incoming().orgId == existing().orgId)
-      && (!incoming().keys().contains('createdAt') || incoming().createdAt == existing().createdAt);
+        (getUserData() != null && isOrgAdmin(existing().orgId) && isValidUserProfile(incoming()))
+      ) && incoming().email == existing().email 
+        && (existing().role == 'owner' || incoming().orgId == existing().orgId);
 
-      allow delete: if isSignedIn() && isOrgAdmin(existing().orgId) && userId != request.auth.uid && existing().role != 'owner';
+      // Allow deletion by admin OR self-adoption cleanup
+      allow delete: if isSignedIn() && (
+        (getUserData() != null && isOrgAdmin(existing().orgId) && userId != request.auth.uid && existing().role != 'owner') ||
+        (request.auth.token.email.lower() == existing().email.lower())
+      );
     }
 
     // Organizations

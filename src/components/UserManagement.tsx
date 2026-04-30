@@ -3,7 +3,7 @@ import { collection, query, where, onSnapshot, doc, setDoc, deleteDoc, Timestamp
 import { db, auth } from '../lib/firebase';
 import { useAuth } from '../lib/AuthContext';
 import { Card, Button, Input, MonospaceValue } from './UI';
-import { Users, UserPlus, Shield, Trash2, Mail, CheckCircle2, XCircle } from 'lucide-react';
+import { Users, UserPlus, Shield, Trash2, Mail, CheckCircle2, XCircle, LogIn } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { handleFirestoreError, OperationType } from '../lib/firebase';
 
@@ -16,7 +16,7 @@ interface orgUser {
 }
 
 export function UserManagement() {
-  const { org, profile } = useAuth();
+  const { org, profile, impersonateUser } = useAuth();
   const [users, setUsers] = useState<orgUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [isAdding, setIsAdding] = useState(false);
@@ -175,8 +175,21 @@ export function UserManagement() {
             className="group glass-card p-6 rounded-2xl border border-white/10 hover:bg-white/10 transition-all"
           >
             <div className="flex justify-between items-start mb-6">
-              <div className="w-12 h-12 bg-slate-800 rounded-xl flex items-center justify-center border border-white/10">
-                {u.role === 'owner' ? <Shield className="w-6 h-6 text-indigo-400" /> : <Users className="w-6 h-6 text-slate-400" />}
+              <div className="flex gap-3">
+                <div className="w-12 h-12 bg-slate-800 rounded-xl flex items-center justify-center border border-white/10">
+                  {u.role === 'owner' ? <Shield className="w-6 h-6 text-indigo-400" /> : <Users className="w-6 h-6 text-slate-400" />}
+                </div>
+                {u.id !== auth.currentUser?.uid && (
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={() => impersonateUser(u as any)} 
+                    className="h-12 px-4 gap-2 bg-indigo-600/10 border border-indigo-500/20 text-indigo-400 hover:bg-indigo-600 hover:text-white"
+                  >
+                    <LogIn className="w-4 h-4" />
+                    <span className="text-[10px] font-bold uppercase tracking-widest">Login As</span>
+                  </Button>
+                )}
               </div>
               {u.role !== 'owner' && u.id !== auth.currentUser?.uid && (
                 <Button variant="ghost" size="sm" onClick={() => removeUser(u.id)} className="p-2 h-9 w-9 text-slate-500 hover:text-red-400">

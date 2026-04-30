@@ -17,7 +17,7 @@ import { NavLink, Outlet } from 'react-router-dom';
 import { cn } from './UI';
 
 export function MainLayout() {
-  const { profile, org } = useAuth();
+  const { profile, org, isImpersonating, stopImpersonating } = useAuth();
 
   const navItems = [
     { icon: LayoutDashboard, label: 'Dashboard', path: '/', roles: ['owner', 'admin'] },
@@ -34,8 +34,26 @@ export function MainLayout() {
 
   return (
     <div className="flex h-screen bg-transparent relative overflow-hidden">
+      {/* Impersonation Indicator Overlay */}
+      {isImpersonating && (
+        <div className="fixed top-0 left-0 right-0 z-[100] bg-indigo-600 px-6 py-2 flex items-center justify-center gap-6 shadow-2xl">
+          <div className="flex items-center gap-3">
+            <UserIcon className="w-4 h-4 text-white animate-pulse" />
+            <span className="text-xs font-black text-white uppercase tracking-widest">
+              Impersonation Active: Acting as {profile?.displayName || profile?.email} ({profile?.role})
+            </span>
+          </div>
+          <button 
+            onClick={stopImpersonating}
+            className="px-4 py-1.5 bg-white text-indigo-600 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-slate-100 transition-all shadow-lg"
+          >
+            Exit Staff Mode
+          </button>
+        </div>
+      )}
+
       {/* Sidebar */}
-      <aside className="w-72 h-full glass-panel flex flex-col z-20">
+      <aside className={cn("w-72 h-full glass-panel flex flex-col z-20 transition-all", isImpersonating && "pt-12")}>
         <div className="p-8 mb-4">
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 bg-indigo-500 rounded-2xl flex items-center justify-center font-bold text-2xl shadow-lg shadow-indigo-500/20 text-white">
@@ -96,7 +114,7 @@ export function MainLayout() {
       </aside>
 
       {/* Main Content Area */}
-      <div className="flex-1 flex flex-col min-w-0 h-full relative z-10">
+      <div className={cn("flex-1 flex flex-col min-w-0 h-full relative z-10 transition-all", isImpersonating && "pt-12")}>
         <header className="h-24 flex items-center justify-between px-10">
           <div>
             <div className="flex items-center gap-3 text-slate-400 mb-1">

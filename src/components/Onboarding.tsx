@@ -104,6 +104,20 @@ export function Onboarding() {
                 </>
               )}
             </Button>
+
+            <div className="pt-4 text-center">
+              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-4">Been invited by an admin?</p>
+              <button 
+                type="button"
+                onClick={() => {
+                  setLoading(true);
+                  refreshProfile().finally(() => setLoading(false));
+                }}
+                className="text-xs font-bold text-indigo-400 hover:text-indigo-300 transition-colors uppercase tracking-[0.2em]"
+              >
+                Sync Invited Profile
+              </button>
+            </div>
           </form>
         </Card>
       </motion.div>

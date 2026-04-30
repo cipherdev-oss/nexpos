@@ -11,7 +11,10 @@ import {
   ArrowUpRight, 
   Clock,
   Activity,
-  History
+  History,
+  ShoppingCart,
+  Trash2,
+  AlertTriangle
 } from 'lucide-react';
 import { 
   AreaChart, 
@@ -25,9 +28,11 @@ import {
   Bar
 } from 'recharts';
 import { format, subDays, startOfDay } from 'date-fns';
+import { useNavigate } from 'react-router-dom';
 
 export function Dashboard() {
-  const { org } = useAuth();
+  const navigate = useNavigate();
+  const { org, profile, nukeEverything } = useAuth();
   const [sales, setSales] = useState<Sale[]>([]);
   const [recentSales, setRecentSales] = useState<Sale[]>([]);
   const [loading, setLoading] = useState(true);
@@ -141,6 +146,26 @@ export function Dashboard() {
         ))}
       </div>
 
+      {/* Quick Actions / Role Shortcuts */}
+      <section className="bg-indigo-600/5 border border-indigo-500/10 rounded-3xl p-8 flex flex-col md:flex-row items-center justify-between gap-8">
+        <div className="flex items-center gap-6">
+          <div className="w-16 h-16 bg-indigo-500/20 rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-500/10 border border-indigo-500/30">
+            <ShoppingCart className="w-8 h-8 text-indigo-400" />
+          </div>
+          <div>
+            <h2 className="text-xl font-bold text-white tracking-tight">Active Terminal Ready</h2>
+            <p className="text-xs text-slate-500 font-medium">Switch to the cashier interface for live sales processing.</p>
+          </div>
+        </div>
+        <button 
+          onClick={() => navigate('/pos')}
+          className="w-full md:w-auto px-10 py-5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl font-black uppercase tracking-widest transition-all shadow-xl shadow-indigo-600/20 flex items-center justify-center gap-3"
+        >
+          Enter POS Mode
+          <ArrowUpRight className="w-5 h-5" />
+        </button>
+      </section>
+
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
         {/* Main Sales Chart */}
         <Card title="Transactional Momentum" className="xl:col-span-2 min-h-[450px]">
@@ -224,6 +249,36 @@ export function Dashboard() {
           </div>
         </Card>
       </div>
+
+      {/* Danger Zone */}
+      <section className="mt-12 p-8 border border-red-500/20 rounded-3xl bg-red-500/5">
+        <div className="flex flex-col md:flex-row items-center justify-between gap-8">
+          <div className="flex items-center gap-6">
+            <div className="w-16 h-16 bg-red-500/20 rounded-2xl flex items-center justify-center shadow-lg shadow-red-500/10 border border-red-500/30">
+              <AlertTriangle className="w-8 h-8 text-red-400" />
+            </div>
+            <div>
+              <h2 className="text-xl font-bold text-white tracking-tight">Danger Zone</h2>
+              <p className="text-xs text-slate-500 font-medium">
+                {profile?.role === 'owner' 
+                  ? 'Deleting your organization will permanently erase all data, inventory, and staff records.' 
+                  : 'Leaving will revoke your access to this organization immediately.'}
+              </p>
+            </div>
+          </div>
+          <button 
+            onClick={() => {
+              if (confirm(`Are you sure you want to ${profile?.role === 'owner' ? 'DELETE entire organization' : 'LEAVE organization'}? This cannot be undone.`)) {
+                nukeEverything();
+              }
+            }}
+            className="w-full md:w-auto px-10 py-5 bg-red-600/10 hover:bg-red-600 text-red-500 hover:text-white border border-red-500/30 rounded-2xl font-black uppercase tracking-widest transition-all flex items-center justify-center gap-3"
+          >
+            <Trash2 className="w-5 h-5" />
+            {profile?.role === 'owner' ? 'Delete Organization' : 'Leave Organization'}
+          </button>
+        </div>
+      </section>
     </div>
   );
 }
