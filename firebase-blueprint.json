@@ -1,0 +1,88 @@
+{
+  "entities": {
+    "Organization": {
+      "title": "Organization",
+      "description": "Represents a store or business entity (Tenant).",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "description": "Legal name of the business" },
+        "ownerId": { "type": "string", "description": "UID of the user who owns the org" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "plan": { "type": "string", "enum": ["free", "pro", "enterprise"] },
+        "currency": { "type": "string", "description": "Default currency code" }
+      },
+      "required": ["name", "ownerId", "createdAt"]
+    },
+    "UserProfile": {
+      "title": "User Profile",
+      "description": "Extended user information and tenant association.",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string" },
+        "displayName": { "type": "string" },
+        "orgId": { "type": "string", "description": "Association with a tenant/org" },
+        "role": { "type": "string", "enum": ["owner", "admin", "cashier"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["email", "orgId", "role"]
+    },
+    "Product": {
+      "title": "Product",
+      "description": "Items available for sale.",
+      "type": "object",
+      "properties": {
+        "orgId": { "type": "string" },
+        "name": { "type": "string" },
+        "sku": { "type": "string" },
+        "barcode": { "type": "string" },
+        "category": { "type": "string" },
+        "price": { "type": "number" },
+        "cost": { "type": "number" },
+        "stock": { "type": "number" },
+        "unit": { "type": "string" },
+        "minStock": { "type": "number" },
+        "imageUrl": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["orgId", "name", "price", "stock"]
+    },
+    "Sale": {
+      "title": "Sale",
+      "description": "Transaction records.",
+      "type": "object",
+      "properties": {
+        "orgId": { "type": "string" },
+        "userId": { "type": "string" },
+        "items": {
+          "type": "array",
+          "items": { "type": "object" }
+        },
+        "subtotal": { "type": "number" },
+        "tax": { "type": "number" },
+        "total": { "type": "number" },
+        "paymentMethod": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["orgId", "userId", "items", "total", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/orgs/{orgId}": {
+      "schema": "Organization",
+      "description": "Base organization documents"
+    },
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "Users and their associated orgs"
+    },
+    "/orgs/{orgId}/products/{productId}": {
+      "schema": "Product",
+      "description": "Products within an organization"
+    },
+    "/orgs/{orgId}/sales/{saleId}": {
+      "schema": "Sale",
+      "description": "Sales history for an organization"
+    }
+  }
+}

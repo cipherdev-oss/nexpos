@@ -1,0 +1,6 @@
+{
+  "name": "NexPOS",
+  "description": "A modern, cloud-native POS and inventory management system inspired by Aronium.",
+  "requestFramePermissions": [],
+  "majorCapabilities": []
+}

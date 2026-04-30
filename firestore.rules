@@ -1,0 +1,128 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 0. Global safety net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Helpers ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isEmailVerified() {
+      return request.auth.token.email_verified == true;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function isOrgMember(orgId) {
+      return isSignedIn() && isEmailVerified() && getUserData().orgId == orgId;
+    }
+
+    function isOrgOwner(orgId) {
+      return isOrgMember(orgId) && getUserData().role == 'owner';
+    }
+
+    function isOrgAdmin(orgId) {
+      return isOrgMember(orgId) && (getUserData().role == 'owner' || getUserData().role == 'admin');
+    }
+
+    // --- Validations ---
+
+    function isValidOrg(data) {
+      return data.keys().hasAll(['name', 'ownerId', 'createdAt'])
+        && data.name is string && data.name.size() > 0 && data.name.size() <= 200
+        && data.ownerId == request.auth.uid
+        && data.createdAt == request.time;
+    }
+
+    function isValidUserProfile(data) {
+      return data.keys().hasAll(['email', 'orgId', 'role'])
+        && data.email is string
+        && data.orgId is string
+        && data.role in ['owner', 'admin', 'cashier'];
+    }
+
+    function isValidProduct(data) {
+      return data.keys().hasAll(['orgId', 'name', 'price', 'stock'])
+        && data.orgId is string
+        && data.name is string && data.name.size() > 0 && data.name.size() <= 200
+        && data.price is number && data.price >= 0
+        && data.stock is number
+        && (data.keys().hasOnly(['orgId', 'name', 'price', 'stock', 'sku', 'barcode', 'category', 'unit', 'minStock', 'imageUrl', 'createdAt', 'updatedAt']));
+    }
+
+    function isValidSale(data) {
+      return data.keys().hasAll(['orgId', 'userId', 'items', 'total', 'createdAt'])
+        && data.orgId is string
+        && data.userId == request.auth.uid
+        && data.items is list && data.items.size() > 0 && data.items.size() <= 50
+        && data.total is number && data.total >= 0
+        && data.createdAt == request.time;
+    }
+
+    // --- Collections ---
+
+    // Users (Profiles)
+    match /users/{userId} {
+      allow list: if isSignedIn() && isEmailVerified() && getUserData().orgId == resource.data.orgId;
+      allow get: if isSignedIn() && (request.auth.uid == userId || (isEmailVerified() && getUserData().orgId == resource.data.orgId));
+      allow create: if isSignedIn() && isValidId(userId) && (
+        (request.auth.uid == userId || isOrgAdmin(incoming().orgId))
+      ) && isValidUserProfile(incoming()) && incoming().createdAt == request.time;
+      
+      allow update: if isSignedIn() && (
+        (request.auth.uid == userId && incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'photoURL'])) ||
+        (isOrgAdmin(existing().orgId) && isValidUserProfile(incoming()))
+      ) 
+      && incoming().email == existing().email 
+      && (existing().role == 'owner' || incoming().orgId == existing().orgId)
+      && (!incoming().keys().contains('createdAt') || incoming().createdAt == existing().createdAt);
+
+      allow delete: if isSignedIn() && isOrgAdmin(existing().orgId) && userId != request.auth.uid && existing().role != 'owner';
+    }
+
+    // Organizations
+    match /orgs/{orgId} {
+      allow get: if isValidId(orgId) && isOrgMember(orgId);
+      allow create: if isSignedIn() && isEmailVerified() && isValidOrg(incoming());
+      allow update: if isOrgOwner(orgId)
+        && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'currency'])
+        && incoming().ownerId == existing().ownerId;
+
+      // Products subcollection
+      match /products/{productId} {
+        allow list: if isOrgMember(orgId);
+        allow get: if isOrgMember(orgId);
+        allow create: if isOrgAdmin(orgId) && isValidProduct(incoming()) && incoming().orgId == orgId;
+        allow update: if isOrgAdmin(orgId) && isValidProduct(incoming())
+          && incoming().orgId == existing().orgId;
+        allow delete: if isOrgAdmin(orgId);
+      }
+
+      // Sales subcollection
+      match /sales/{saleId} {
+        allow list: if isOrgMember(orgId);
+        allow get: if isOrgMember(orgId);
+        allow create: if isOrgMember(orgId) && isValidSale(incoming()) && incoming().orgId == orgId;
+        allow update, delete: if false;
+      }
+    }
+  }
+}
