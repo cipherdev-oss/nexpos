@@ -7,7 +7,7 @@ import { Plus, Search, Layers, Edit2, Trash2, X, Check, Loader2, Package, Chevro
 import { motion, AnimatePresence } from 'motion/react';
 
 export function CategoryManagement() {
-  const { org, profile } = useAuth();
+  const { org, profile, user } = useAuth();
   const [categories, setCategories] = useState<Category[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
@@ -59,10 +59,36 @@ export function CategoryManagement() {
           ...formData,
           updatedAt: serverTimestamp()
         });
+
+        // Audit Log
+        await addDoc(collection(db, 'orgs', org.id, 'audit'), {
+          orgId: org.id,
+          userId: user?.uid,
+          userEmail: user?.email,
+          action: 'update',
+          targetType: 'category',
+          targetId: editingCategory.id,
+          targetName: formData.name,
+          details: `Modified classification parameters for category: ${formData.name}`,
+          createdAt: serverTimestamp()
+        });
       } else {
-        await addDoc(collection(db, 'orgs', org.id, 'categories'), {
+        const docRef = await addDoc(collection(db, 'orgs', org.id, 'categories'), {
           ...formData,
           orgId: org.id,
+          createdAt: serverTimestamp()
+        });
+
+        // Audit Log
+        await addDoc(collection(db, 'orgs', org.id, 'audit'), {
+          orgId: org.id,
+          userId: user?.uid,
+          userEmail: user?.email,
+          action: 'create',
+          targetType: 'category',
+          targetId: docRef.id,
+          targetName: formData.name,
+          details: `Initialized new classification cluster: ${formData.name}`,
           createdAt: serverTimestamp()
         });
       }
@@ -86,8 +112,22 @@ export function CategoryManagement() {
 
   const handleDelete = async (id: string) => {
     if (!org?.id || !window.confirm('Are you sure you want to delete this category? Items using this category will remain, but the category itself will be removed from the registry.')) return;
+    const catToDelete = categories.find(c => c.id === id);
     try {
       await deleteDoc(doc(db, 'orgs', org.id, 'categories', id));
+
+      // Audit Log
+      await addDoc(collection(db, 'orgs', org.id, 'audit'), {
+        orgId: org.id,
+        userId: user?.uid,
+        userEmail: user?.email,
+        action: 'delete',
+        targetType: 'category',
+        targetId: id,
+        targetName: catToDelete?.name || 'Unknown Category',
+        details: `Decommissioned classification cluster: ${catToDelete?.name || id}`,
+        createdAt: serverTimestamp()
+      });
     } catch (error) {
       handleFirestoreError(error, OperationType.DELETE, `orgs/${org.id}/categories/${id}`);
     }
@@ -126,7 +166,7 @@ export function CategoryManagement() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
           >
-            <Card title={editingCategory ? "Modify Categorization" : "New Categorization"} className="border-indigo-500/20 bg-indigo-500/5">
+            <Card title={editingCategory ? "Modify Categorization" : "New Categorization"} className="border-accent-border bg-accent/5">
               <form onSubmit={handleSubmit} className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-1.5">
@@ -182,7 +222,7 @@ export function CategoryManagement() {
                 </div>
                 <div className="space-y-4">
                   <MonospaceValue label="Total Clusters" value={categories.length} />
-                  <MonospaceValue label="Mapped Assets" value={products.length} />
+                  <MonospaceValue label="Mapped Assets" value={products.filter(p => !p.isGuideItem).length} />
                 </div>
               </div>
             </div>
@@ -192,7 +232,7 @@ export function CategoryManagement() {
         <div className="lg:col-span-3">
           {loading ? (
             <div className="h-64 flex items-center justify-center">
-              <Loader2 className="w-8 h-8 text-indigo-500 animate-spin opacity-20" />
+              <Loader2 className="w-8 h-8 text-accent animate-spin opacity-20" />
             </div>
           ) : filteredCategories.length === 0 ? (
             <div className="h-64 glass-panel rounded-[32px] flex flex-col items-center justify-center text-center p-8 lg:p-12 border-dashed border-white/10">
@@ -203,7 +243,7 @@ export function CategoryManagement() {
           ) : (
             <div className="grid grid-cols-1 gap-4">
               {filteredCategories.map((category) => {
-                const categoryProducts = products.filter(p => p.category === category.name);
+                const categoryProducts = products.filter(p => p.category?.trim().toLowerCase() === category.name.trim().toLowerCase());
                 const isExpanded = category.id && expandedCats.has(category.id);
 
                 return (
@@ -219,14 +259,14 @@ export function CategoryManagement() {
                         className="flex items-center gap-4 lg:gap-6 cursor-pointer flex-1"
                         onClick={() => category.id && toggleExpand(category.id)}
                       >
-                        <div className="w-10 h-10 lg:w-12 lg:h-12 bg-white/5 rounded-xl flex items-center justify-center border border-white/10 group-hover:bg-indigo-500/10 group-hover:border-indigo-500/20 transition-all shrink-0">
-                          <Layers className="w-5 h-5 text-slate-400 group-hover:text-indigo-400 transition-all" />
+                        <div className="w-10 h-10 lg:w-12 lg:h-12 bg-white/5 rounded-xl flex items-center justify-center border border-white/10 group-hover:bg-accent/10 group-hover:border-accent-border transition-all shrink-0">
+                          <Layers className="w-5 h-5 text-slate-400 group-hover:text-accent transition-all" />
                         </div>
                         <div className="min-w-0">
                           <div className="flex items-center gap-3">
                             <h3 className="text-lg lg:text-xl font-bold text-white tracking-tight truncate">{category.name}</h3>
-                            <span className="px-2 py-0.5 bg-slate-800 text-[9px] font-bold text-slate-400 rounded-md border border-white/5">
-                              {categoryProducts.length} Assets
+                            <span className="px-2 py-0.5 bg-slate-800 text-[9px] font-bold text-slate-400 rounded-md border border-white/5 font-mono">
+                              {categoryProducts.filter(p => !p.isGuideItem).length} Assets
                             </span>
                           </div>
                           <p className="text-[10px] lg:text-xs text-slate-500 mt-0.5 line-clamp-1">{category.description || 'No description provided.'}</p>
@@ -276,29 +316,61 @@ export function CategoryManagement() {
                                 <span className="text-[10px] font-bold uppercase tracking-widest">No mapped assets</span>
                               </div>
                             ) : (
-                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 {categoryProducts.map(p => (
-                                  <div key={p.id} className="flex items-center justify-between p-3 bg-white/5 rounded-xl border border-white/5">
-                                    <div className="flex items-center gap-3">
-                                      <div className="w-8 h-8 bg-slate-900 rounded-lg flex items-center justify-center border border-white/5">
-                                        <Tag className="w-3.5 h-3.5 text-indigo-400" />
+                                  <div key={p.id} className={cn(
+                                    "p-4 bg-white/5 border rounded-2xl flex flex-col gap-3 relative overflow-hidden transition-all",
+                                    p.isGuideItem ? "border-emerald-500/10 bg-emerald-500/[0.02]" : "border-white/5"
+                                  )}>
+                                    {p.isGuideItem && (
+                                      <div className="absolute top-0 right-0 bg-emerald-500/10 text-emerald-400 font-mono text-[8px] font-black uppercase tracking-wider px-2 py-0.5 rounded-bl-xl border-l border-b border-emerald-500/20 select-none">
+                                        ⚡ Sandbox Standard
                                       </div>
-                                      <div className="flex flex-col">
-                                        <span className="text-xs font-bold text-slate-200">{p.name}</span>
-                                        <span className="text-[9px] font-mono text-slate-500 uppercase tracking-widest">{p.sku}</span>
+                                    )}
+                                    <div className="flex items-center justify-between">
+                                      <div className="flex items-center gap-3">
+                                        <div className="w-8 h-8 bg-slate-900 rounded-lg flex items-center justify-center border border-white/5">
+                                          <Tag className="w-3.5 h-3.5 text-accent" />
+                                        </div>
+                                        <div className="flex flex-col">
+                                          <span className="text-xs font-bold text-slate-200">
+                                            {p.name}
+                                          </span>
+                                          {!p.hasVariants && (
+                                            <span className="text-[9px] font-mono text-slate-500 uppercase tracking-widest">{p.sku}</span>
+                                          )}
+                                        </div>
+                                      </div>
+                                      <div className="text-right">
+                                        <div className="text-[10px] font-bold text-accent">
+                                          {p.hasVariants ? 'From ' : ''}{new Intl.NumberFormat('en-US', { style: 'currency', currency: org?.currency || 'USD' }).format(p.price)}
+                                        </div>
+                                        <div className={cn(
+                                          "text-[9px] font-bold uppercase tracking-tighter mt-0.5",
+                                          p.stock <= p.minStock ? "text-amber-500" : "text-slate-500"
+                                        )}>
+                                          Stock: {p.stock}
+                                        </div>
                                       </div>
                                     </div>
-                                    <div className="text-right">
-                                      <div className="text-[10px] font-bold text-indigo-300">
-                                        {new Intl.NumberFormat('en-US', { style: 'currency', currency: org?.currency || 'USD' }).format(p.price)}
+
+                                    {/* Multi-variants nested list */}
+                                    {p.hasVariants && p.variants && p.variants.length > 0 && (
+                                      <div className="pl-3 border-l border-white/10 space-y-2 mt-1">
+                                        {p.variants.map((v, idx) => (
+                                          <div key={v.id || idx} className="flex items-center justify-between p-2 bg-black/20 rounded-xl border border-white/5 text-[10px] hover:border-white/10 transition-colors">
+                                            <div className="flex flex-col">
+                                              <span className="font-bold text-slate-300">{v.name}</span>
+                                              <span className="text-[8px] font-mono text-slate-500 uppercase tracking-wider">SKU: {v.sku} | Barcode: {v.barcode}</span>
+                                            </div>
+                                            <div className="text-right flex items-center gap-2">
+                                              <span className="font-mono text-emerald-400 font-bold">{new Intl.NumberFormat('en-US', { style: 'currency', currency: org?.currency || 'USD' }).format(v.price)}</span>
+                                              <span className="text-[8px] font-mono text-slate-400 bg-white/5 px-1.5 py-0.5 rounded">Stock: {v.stock}</span>
+                                            </div>
+                                          </div>
+                                        ))}
                                       </div>
-                                      <div className={cn(
-                                        "text-[9px] font-bold uppercase tracking-tighter",
-                                        p.stock <= p.minStock ? "text-amber-500" : "text-slate-500"
-                                      )}>
-                                        Stock: {p.stock}
-                                      </div>
-                                    </div>
+                                    )}
                                   </div>
                                 ))}
                               </div>

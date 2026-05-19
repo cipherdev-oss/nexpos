@@ -9,7 +9,9 @@
         "ownerId": { "type": "string", "description": "UID of the user who owns the org" },
         "createdAt": { "type": "string", "format": "date-time" },
         "plan": { "type": "string", "enum": ["free", "pro", "enterprise"] },
-        "currency": { "type": "string", "description": "Default currency code" }
+        "currency": { "type": "string", "description": "Default currency code" },
+        "taxRate": { "type": "number", "description": "Standard tax percentage" },
+        "accentColor": { "type": "string", "description": "UI accent color code" }
       },
       "required": ["name", "ownerId", "createdAt"]
     },
@@ -42,6 +44,11 @@
         "unit": { "type": "string" },
         "minStock": { "type": "number" },
         "imageUrl": { "type": "string" },
+        "hasVariants": { "type": "boolean", "description": "Whether the product is a parent with multiple variations" },
+        "variants": {
+          "type": "array",
+          "items": { "type": "object", "description": "Form page size / count variants with specific pricing and inventory" }
+        },
         "createdAt": { "type": "string", "format": "date-time" },
         "updatedAt": { "type": "string", "format": "date-time" }
       },

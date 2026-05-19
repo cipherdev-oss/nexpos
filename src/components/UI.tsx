@@ -16,7 +16,7 @@ export function Button({
   size?: 'sm' | 'md' | 'lg'
 }) {
   const variants = {
-    primary: 'bg-indigo-600 text-white hover:bg-indigo-500 shadow-lg shadow-indigo-600/20 rounded-xl font-semibold',
+    primary: 'bg-accent text-white hover:bg-accent-hover shadow-lg shadow-accent/20 rounded-xl font-semibold',
     secondary: 'bg-slate-800 text-slate-200 hover:bg-slate-700 rounded-xl',
     outline: 'border border-white/10 text-slate-300 hover:bg-white/5 rounded-xl',
     ghost: 'text-slate-400 hover:bg-white/5 hover:text-slate-200 rounded-xl',
@@ -46,7 +46,7 @@ export function Input({ className, ...props }: React.InputHTMLAttributes<HTMLInp
   return (
     <input
       className={cn(
-        'w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-slate-200 text-sm placeholder:text-slate-500 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 transition-all',
+        'w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-slate-200 text-sm placeholder:text-slate-500 focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20 transition-all',
         className
       )}
       {...props}
@@ -54,15 +54,18 @@ export function Input({ className, ...props }: React.InputHTMLAttributes<HTMLInp
   );
 }
 
-export function Card({ className, children, title, ...props }: React.HTMLAttributes<HTMLDivElement> & { title?: string }) {
+export function Card({ className, children, title, action, ...props }: React.HTMLAttributes<HTMLDivElement> & { title?: string, action?: React.ReactNode }) {
   return (
     <div className={cn('glass-card flex flex-col rounded-2xl overflow-hidden', className)} {...props}>
       {title && (
         <div className="border-b border-white/10 px-6 py-4 flex items-center justify-between bg-white/5">
           <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">{title}</span>
-          <div className="flex gap-1.5">
-            <div className="w-1.5 h-1.5 bg-white/20 rounded-full" />
-            <div className="w-1.5 h-1.5 bg-white/20 rounded-full" />
+          <div className="flex items-center gap-4">
+            {action && action}
+            <div className="flex gap-1.5">
+              <div className="w-1.5 h-1.5 bg-white/20 rounded-full" />
+              <div className="w-1.5 h-1.5 bg-white/20 rounded-full" />
+            </div>
           </div>
         </div>
       )}

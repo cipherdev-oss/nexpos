@@ -81,7 +81,7 @@ export function LoginScreen() {
           <motion.div 
             initial={{ rotate: -10, y: -20 }}
             animate={{ rotate: 0, y: 0 }}
-            className="w-16 h-16 bg-indigo-600 rounded-2xl flex items-center justify-center mb-4 shadow-xl shadow-indigo-600/30"
+            className="w-16 h-16 bg-accent rounded-2xl flex items-center justify-center mb-4 shadow-xl shadow-accent/30"
           >
             <Terminal className="w-10 h-10 text-white" />
           </motion.div>
@@ -94,13 +94,13 @@ export function LoginScreen() {
             <div className="flex p-1 bg-white/5 rounded-xl border border-white/5 mb-6">
               <button 
                 onClick={() => setMethod('social')}
-                className={`flex-1 py-2 text-[10px] font-bold uppercase tracking-widest rounded-lg transition-all ${method === 'social' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
+                className={`flex-1 py-2 text-[10px] font-bold uppercase tracking-widest rounded-lg transition-all ${method === 'social' ? 'bg-accent text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
               >
                 Social Connect
               </button>
               <button 
                 onClick={() => setMethod('email')}
-                className={`flex-1 py-2 text-[10px] font-bold uppercase tracking-widest rounded-lg transition-all ${method === 'email' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
+                className={`flex-1 py-2 text-[10px] font-bold uppercase tracking-widest rounded-lg transition-all ${method === 'email' ? 'bg-accent text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}
               >
                 Email Matrix
               </button>
@@ -179,7 +179,7 @@ export function LoginScreen() {
                   <Button 
                     type="submit"
                     disabled={loading}
-                    className="w-full h-12 gap-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold border-none mt-2"
+                    className="w-full h-12 gap-3 bg-accent hover:bg-accent-hover text-white font-bold border-none mt-2"
                   >
                     {loading ? (
                       <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: "linear" }}>
@@ -197,7 +197,7 @@ export function LoginScreen() {
                     <button 
                       type="button"
                       onClick={() => setMode(mode === 'login' ? 'signup' : 'login')}
-                      className="text-[10px] font-bold text-slate-500 hover:text-indigo-400 uppercase tracking-widest transition-colors py-2 text-left"
+                      className="text-[10px] font-bold text-slate-500 hover:text-accent uppercase tracking-widest transition-colors py-2 text-left"
                     >
                       {mode === 'login' ? 'Request New Identity Provisioning' : 'Access Existing Infrastructure'}
                     </button>
@@ -205,7 +205,7 @@ export function LoginScreen() {
                       <button 
                         type="button"
                         onClick={handleForgotPassword}
-                        className="text-[10px] font-bold text-slate-500 hover:text-indigo-400 uppercase tracking-widest transition-colors py-2 text-right"
+                        className="text-[10px] font-bold text-slate-500 hover:text-accent uppercase tracking-widest transition-colors py-2 text-right"
                       >
                         Reset Protocol
                       </button>
@@ -223,7 +223,7 @@ export function LoginScreen() {
 
             <div className="flex justify-between items-center text-[10px] font-bold text-slate-600 uppercase tracking-widest">
               <span className="flex items-center gap-2">
-                <Fingerprint className="w-3 h-3 text-emerald-500/50" />
+                <Fingerprint className="w-3 h-3 text-accent/50" />
                 Auth Protocol v2.4
               </span>
               <span className="opacity-50">Stable Release</span>
@@ -237,7 +237,7 @@ export function LoginScreen() {
           </p>
           <div className="flex gap-4">
              <div className="w-8 h-1 bg-slate-900 rounded-full" />
-             <div className="w-12 h-1 bg-indigo-900/30 rounded-full" />
+             <div className="w-12 h-1 bg-accent/20 rounded-full" />
              <div className="w-8 h-1 bg-slate-900 rounded-full" />
           </div>
         </div>

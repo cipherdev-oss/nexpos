@@ -104,11 +104,11 @@ export function UserManagement() {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-        <Card title="Workspace Quota" className="bg-indigo-600/5 border-indigo-500/20">
+        <Card title="Workspace Quota" className="bg-accent/5 border-accent-border">
           <div className="flex items-center justify-between">
             <MonospaceValue label="Active Seats" value={`${users.length} / 10`} />
-            <div className="w-10 h-10 lg:w-12 lg:h-12 rounded-2xl bg-indigo-500/20 flex items-center justify-center">
-              <Users className="w-6 h-6 text-indigo-400" />
+            <div className="w-10 h-10 lg:w-12 lg:h-12 rounded-2xl bg-accent/20 flex items-center justify-center">
+              <Users className="w-6 h-6 text-accent" />
             </div>
           </div>
         </Card>
@@ -141,7 +141,7 @@ export function UserManagement() {
                     <button
                       type="button"
                       onClick={() => setNewRole('cashier')}
-                      className={`p-4 rounded-xl border text-left transition-all ${newRole === 'cashier' ? 'bg-indigo-600 border-indigo-400 text-white shadow-lg shadow-indigo-600/20' : 'bg-white/5 border-white/10 text-slate-400'}`}
+                      className={`p-4 rounded-xl border text-left transition-all ${newRole === 'cashier' ? 'bg-accent border-accent text-white shadow-lg shadow-accent/20' : 'bg-white/5 border-white/10 text-slate-400'}`}
                     >
                       <span className="block font-bold text-sm">Cashier</span>
                       <span className="text-[10px] opacity-70">Sales operations only</span>
@@ -149,7 +149,7 @@ export function UserManagement() {
                     <button
                       type="button"
                       onClick={() => setNewRole('admin')}
-                      className={`p-4 rounded-xl border text-left transition-all ${newRole === 'admin' ? 'bg-indigo-600 border-indigo-400 text-white shadow-lg shadow-indigo-600/20' : 'bg-white/5 border-white/10 text-slate-400'}`}
+                      className={`p-4 rounded-xl border text-left transition-all ${newRole === 'admin' ? 'bg-accent border-accent text-white shadow-lg shadow-accent/20' : 'bg-white/5 border-white/10 text-slate-400'}`}
                     >
                       <span className="block font-bold text-sm">Admin</span>
                       <span className="text-[10px] opacity-70">Full system access</span>
@@ -177,14 +177,14 @@ export function UserManagement() {
             <div className="flex justify-between items-start mb-6">
               <div className="flex gap-3">
                 <div className="w-12 h-12 bg-slate-800 rounded-xl flex items-center justify-center border border-white/10">
-                  {u.role === 'owner' ? <Shield className="w-6 h-6 text-indigo-400" /> : <Users className="w-6 h-6 text-slate-400" />}
+                  {u.role === 'owner' ? <Shield className="w-6 h-6 text-accent" /> : <Users className="w-6 h-6 text-slate-400" />}
                 </div>
                 {u.id !== auth.currentUser?.uid && (
                   <Button 
                     variant="ghost" 
                     size="sm" 
                     onClick={() => impersonateUser(u as any)} 
-                    className="h-12 px-4 gap-2 bg-indigo-600/10 border border-indigo-500/20 text-indigo-400 hover:bg-indigo-600 hover:text-white"
+                    className="h-12 px-4 gap-2 bg-accent/10 border border-accent-border text-accent hover:bg-accent hover:text-white"
                   >
                     <LogIn className="w-4 h-4" />
                     <span className="text-[10px] font-bold uppercase tracking-widest">Login As</span>
@@ -206,11 +206,11 @@ export function UserManagement() {
 
             <div className="flex justify-between items-center pt-6 border-t border-white/5">
               <div className="flex items-center gap-2">
-                <div className={`w-1.5 h-1.5 rounded-full ${u.role === 'owner' ? 'bg-indigo-400' : u.role === 'admin' ? 'bg-emerald-400' : 'bg-slate-500'}`} />
+                <div className={`w-1.5 h-1.5 rounded-full ${u.role === 'owner' ? 'bg-accent' : u.role === 'admin' ? 'bg-accent/60' : 'bg-slate-500'}`} />
                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{u.role}</span>
               </div>
               <div className="flex items-center gap-1.5 px-2 py-1 bg-white/5 rounded-lg border border-white/5">
-                <CheckCircle2 className="w-3 h-3 text-emerald-500" />
+                <CheckCircle2 className="w-3 h-3 text-accent" />
                 <span className="text-[9px] font-bold text-slate-500 uppercase">Synchronized</span>
               </div>
             </div>

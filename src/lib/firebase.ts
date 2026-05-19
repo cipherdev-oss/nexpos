@@ -89,6 +89,8 @@ export interface Organization {
   ownerId: string;
   createdAt: any;
   currency: string;
+  taxRate: number;
+  accentColor?: string;
 }
 
 export interface UserProfile {
@@ -109,6 +111,16 @@ export interface Category {
   createdAt?: any;
 }
 
+export interface ProductVariant {
+  id: string;
+  name: string;
+  sku: string;
+  barcode: string;
+  price: number;
+  cost: number;
+  stock: number;
+}
+
 export interface Product {
   id?: string;
   orgId: string;
@@ -121,15 +133,23 @@ export interface Product {
   stock: number;
   unit: string;
   minStock: number;
+  subCategory?: string;
   imageUrl?: string;
+  hasVariants?: boolean;
+  variants?: ProductVariant[];
+  isGuideItem?: boolean;
   createdAt?: any;
   updatedAt?: any;
 }
 
 export interface SaleItem {
   productId: string;
+  variantId?: string;
+  variantName?: string;
   name: string;
+  subCategory?: string;
   price: number;
+  cost: number;
   quantity: number;
   total: number;
 }
@@ -143,5 +163,19 @@ export interface Sale {
   tax: number;
   total: number;
   paymentMethod: string;
+  createdAt: any;
+}
+
+export interface AuditLog {
+  id?: string;
+  orgId: string;
+  userId: string;
+  userEmail: string;
+  action: 'create' | 'update' | 'delete' | 'sale' | 'reset' | 'adjust';
+  targetType: 'product' | 'category' | 'sale' | 'org';
+  targetId: string;
+  targetName: string;
+  details: string;
+  metadata?: any;
   createdAt: any;
 }

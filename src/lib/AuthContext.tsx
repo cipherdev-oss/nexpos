@@ -1,7 +1,8 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, onAuthStateChanged } from 'firebase/auth';
-import { doc, getDoc, setDoc, serverTimestamp, query, collection, where, getDocs, deleteDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, serverTimestamp, query, collection, where, getDocs, deleteDoc, onSnapshot } from 'firebase/firestore';
 import { auth, db, UserProfile, Organization, handleFirestoreError, OperationType } from './firebase';
+import { getAccentStyles } from './theme';
 
 interface AuthContextType {
   user: User | null;
@@ -24,75 +25,98 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [org, setOrg] = useState<Organization | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchProfileAndOrg = async (uid: string, email: string | null) => {
-    try {
-      // 1. Adoption/Invitation Sync Logic
-      // If an email is present, check if there's a pre-provisioned profile (invitation)
-      // that hasn't been adopted yet (ID != UID).
-      if (email) {
-        try {
-          const q = query(collection(db, 'users'), where('email', '==', email.toLowerCase()));
-          const snapshot = await getDocs(q);
-          
-          const invitation = snapshot.docs.find(d => d.id !== uid);
-          
-          if (invitation) {
-            const invData = invitation.data();
-            
-            // Overwrite/Adopt: This replaces any accidental onboarding profile with the invited one
-            await setDoc(doc(db, 'users', uid), {
-              ...invData,
-              updatedAt: serverTimestamp(),
-              id: uid // Ensure the ID reflects the actual UID
-            });
-            
-            // Remove the invitation placeholder
-            await deleteDoc(invitation.ref);
-          }
-        } catch (error) {
-          console.error("Adoption error:", error);
-        }
-      }
-
-      // 2. Fetch the final authoritative profile
-      let userDoc = await getDoc(doc(db, 'users', uid));
-
-      if (userDoc.exists()) {
-        const userData = userDoc.data() as UserProfile;
-        setProfile({ ...userData, id: userDoc.id });
-        
-        if (userData.orgId) {
-          const orgDoc = await getDoc(doc(db, 'orgs', userData.orgId));
-          if (orgDoc.exists()) {
-            setOrg({ ...(orgDoc.data() as Organization), id: orgDoc.id });
-          }
-        }
-      } else {
-        setProfile(null);
-        setOrg(null);
-      }
-    } catch (error) {
-      console.error('Error fetching profile/org:', error);
+  useEffect(() => {
+    if (org?.accentColor) {
+      const styles = getAccentStyles(org.accentColor);
+      Object.entries(styles).forEach(([key, value]) => {
+        document.documentElement.style.setProperty(key, value as string);
+      });
+    } else {
+      // Default styles
+      const styles = getAccentStyles('sky');
+      Object.entries(styles).forEach(([key, value]) => {
+        document.documentElement.style.setProperty(key, value as string);
+      });
     }
-  };
+  }, [org?.accentColor]);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+    let unsubscribeProfile: (() => void) | null = null;
+    let unsubscribeOrg: (() => void) | null = null;
+
+    const unsubscribeAuth = onAuthStateChanged(auth, async (user) => {
       setUser(user);
+      
+      // Cleanup previous listeners
+      if (unsubscribeProfile) unsubscribeProfile();
+      if (unsubscribeOrg) unsubscribeOrg();
+      
       if (user) {
-        await fetchProfileAndOrg(user.uid, user.email);
+        // Adoption/Invitation Sync Logic (one-time check on login)
+        if (user.email) {
+          try {
+            const q = query(collection(db, 'users'), where('email', '==', user.email.toLowerCase()));
+            const snapshot = await getDocs(q);
+            const invitation = snapshot.docs.find(d => d.id !== user.uid);
+            if (invitation) {
+              const invData = invitation.data();
+              await setDoc(doc(db, 'users', user.uid), {
+                ...invData,
+                updatedAt: serverTimestamp(),
+                id: user.uid
+              });
+              await deleteDoc(invitation.ref);
+            }
+          } catch (e) { console.error("Adoption error:", e); }
+        }
+
+        // Real-time Profile Listener
+        unsubscribeProfile = onSnapshot(doc(db, 'users', user.uid), (userDoc) => {
+          if (userDoc.exists()) {
+            const userData = userDoc.data() as UserProfile;
+            setProfile({ ...userData, id: userDoc.id });
+            
+            // Real-time Org Listener (Setup only if orgId changes or doesn't exist)
+            if (userData.orgId) {
+              // Note: We don't want to re-subscribe if orgId is same, but org data itself might change.
+              // So we just always subscribe to the current orgId.
+              if (unsubscribeOrg) unsubscribeOrg();
+              unsubscribeOrg = onSnapshot(doc(db, 'orgs', userData.orgId), (orgDoc) => {
+                if (orgDoc.exists()) {
+                  setOrg({ ...(orgDoc.data() as Organization), id: orgDoc.id });
+                } else {
+                  setOrg(null);
+                }
+              });
+            } else {
+              setOrg(null);
+            }
+          } else {
+            setProfile(null);
+            setOrg(null);
+          }
+          setLoading(false);
+        }, (err) => {
+          console.error("Profile listen error:", err);
+          setLoading(false);
+        });
       } else {
         setProfile(null);
         setOrg(null);
         setSimulatedProfile(null);
+        setLoading(false);
       }
-      setLoading(false);
     });
-    return unsubscribe;
+
+    return () => {
+      unsubscribeAuth();
+      if (unsubscribeProfile) unsubscribeProfile();
+      if (unsubscribeOrg) unsubscribeOrg();
+    };
   }, []);
 
   const refreshProfile = async () => {
-    if (user) await fetchProfileAndOrg(user.uid, user.email);
+    // With onSnapshot, manual refresh is largely redundant but we'll keep it for stability
   };
 
   const impersonateUser = (targetProfile: UserProfile) => {

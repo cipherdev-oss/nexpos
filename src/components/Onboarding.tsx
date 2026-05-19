@@ -59,8 +59,8 @@ export function Onboarding() {
         <Card title="Workspace Initialization">
           <form onSubmit={handleCreateOrg} className="space-y-8 py-6 px-4">
             <div className="flex items-center gap-6">
-              <div className="w-16 h-16 bg-indigo-500/10 border border-indigo-500/20 rounded-2xl flex items-center justify-center shadow-lg">
-                <Store className="w-8 h-8 text-indigo-400" />
+              <div className="w-16 h-16 bg-accent/10 border border-accent-border rounded-2xl flex items-center justify-center shadow-lg">
+                <Store className="w-8 h-8 text-accent" />
               </div>
               <div>
                 <h2 className="text-2xl font-bold text-white tracking-tight">Establish Node</h2>
@@ -123,7 +123,7 @@ export function Onboarding() {
                   setLoading(true);
                   refreshProfile().finally(() => setLoading(false));
                 }}
-                className="text-xs font-bold text-indigo-400 hover:text-indigo-300 transition-colors uppercase tracking-[0.2em]"
+                className="text-xs font-bold text-accent hover:text-accent-hover transition-colors uppercase tracking-[0.2em]"
               >
                 Sync Invited Profile
               </button>

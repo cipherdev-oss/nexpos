@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../lib/AuthContext';
 import { logOut } from '../lib/firebase';
+import { getAccentStyles } from '../lib/theme';
 import { 
   BarChart3, 
   Package, 
@@ -13,6 +14,7 @@ import {
   Box,
   Layers,
   Users,
+  History,
   ChevronLeft,
   ChevronRight
 } from 'lucide-react';
@@ -22,6 +24,7 @@ import { motion, AnimatePresence } from 'motion/react';
 
 export function MainLayout() {
   const { profile, org, isImpersonating, stopImpersonating } = useAuth();
+  
   const [isCollapsed, setIsCollapsed] = useState(() => {
     const saved = localStorage.getItem('sidebar_collapsed');
     return saved === 'true';
@@ -38,6 +41,7 @@ export function MainLayout() {
     { icon: Box, label: 'Inventory Hub', path: '/inventory', roles: ['owner', 'admin'] },
     { icon: Layers, label: 'Categories', path: '/categories', roles: ['owner', 'admin'] },
     { icon: Users, label: 'Staff Node', path: '/users', roles: ['owner', 'admin'] },
+    { icon: History, label: 'Audit Trace', path: '/audit', roles: ['owner', 'admin'] },
     { icon: BarChart3, label: 'Analytics', path: '/analytics', roles: ['owner', 'admin'] },
     { icon: Settings, label: 'Configuration', path: '/settings', roles: ['owner', 'admin'] },
   ];
@@ -50,7 +54,7 @@ export function MainLayout() {
     <div className="flex h-screen bg-transparent relative overflow-hidden">
       {/* Impersonation Indicator Overlay */}
       {isImpersonating && (
-        <div className="fixed top-0 left-0 right-0 z-[100] bg-indigo-600 px-6 py-2 flex items-center justify-center gap-6 shadow-2xl">
+        <div className="fixed top-0 left-0 right-0 z-[100] bg-accent px-6 py-2 flex items-center justify-center gap-6 shadow-2xl">
           <div className="flex items-center gap-3">
             <UserIcon className="w-4 h-4 text-white animate-pulse" />
             <span className="text-xs font-black text-white uppercase tracking-widest">
@@ -59,7 +63,7 @@ export function MainLayout() {
           </div>
           <button 
             onClick={stopImpersonating}
-            className="px-4 py-1.5 bg-white text-indigo-600 rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-slate-100 transition-all shadow-lg"
+            className="px-4 py-1.5 bg-white text-accent rounded-lg text-[10px] font-black uppercase tracking-widest hover:bg-slate-100 transition-all shadow-lg"
           >
             Exit Staff Mode
           </button>
@@ -78,14 +82,14 @@ export function MainLayout() {
         {/* Toggle Button */}
         <button 
           onClick={() => setIsCollapsed(!isCollapsed)}
-          className="absolute -right-3 top-28 w-6 h-6 bg-slate-900 border border-white/10 rounded-full flex items-center justify-center z-30 hover:bg-indigo-600 hover:border-indigo-400 transition-all text-white group"
+          className="absolute -right-3 top-28 w-6 h-6 bg-slate-900 border border-white/10 rounded-full flex items-center justify-center z-30 hover:bg-accent hover:border-accent-border transition-all text-white group"
         >
           {isCollapsed ? <ChevronRight className="w-3 h-3" /> : <ChevronLeft className="w-3 h-3" />}
         </button>
 
         <div className={cn("p-8 mb-4", isCollapsed && "p-5")}>
           <div className="flex items-center gap-4">
-            <div className="min-w-[48px] w-12 h-12 bg-indigo-500 rounded-2xl flex items-center justify-center font-bold text-2xl shadow-lg shadow-indigo-500/20 text-white flex-shrink-0">
+            <div className="min-w-[48px] w-12 h-12 bg-accent rounded-2xl flex items-center justify-center font-bold text-2xl shadow-lg shadow-accent/20 text-white flex-shrink-0">
               N
             </div>
             {!isCollapsed && (
@@ -94,7 +98,7 @@ export function MainLayout() {
                 animate={{ opacity: 1, x: 0 }}
                 className="flex flex-col min-w-0"
               >
-                <span className="text-xl font-bold tracking-tight text-white whitespace-nowrap">NestPOS <span className="text-indigo-400">Cloud</span></span>
+                <span className="text-xl font-bold tracking-tight text-white whitespace-nowrap">NestPOS <span className="text-accent">Cloud</span></span>
                 <span className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] leading-none mt-1">Tenant v2.4</span>
               </motion.div>
             )}
@@ -116,7 +120,7 @@ export function MainLayout() {
             >
               {({ isActive }) => (
                 <>
-                  <item.icon className={cn("w-5 h-5 flex-shrink-0", isActive ? "text-indigo-400" : "text-slate-500 group-hover:text-slate-300")} />
+                  <item.icon className={cn("w-5 h-5 flex-shrink-0", isActive ? "text-accent" : "text-slate-500 group-hover:text-slate-300")} />
                   {!isCollapsed && (
                     <motion.span
                       initial={{ opacity: 0 }}
@@ -155,7 +159,7 @@ export function MainLayout() {
                   {profile?.displayName || 'User'}
                 </span>
                 <div className="flex items-center gap-1.5 ">
-                  <Shield className="w-3 h-3 text-indigo-400" />
+                  <Shield className="w-3 h-3 text-accent" />
                   <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">{profile?.role}</span>
                 </div>
               </motion.div>
@@ -199,7 +203,7 @@ export function MainLayout() {
             >
               <div className="p-8 border-b border-white/10 flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-indigo-500 rounded-xl flex items-center justify-center font-bold text-xl text-white">N</div>
+                  <div className="w-10 h-10 bg-accent rounded-xl flex items-center justify-center font-bold text-xl text-white">N</div>
                   <span className="text-lg font-bold text-white">NestPOS Cloud</span>
                 </div>
                 <button onClick={() => setIsMobileMenuOpen(false)} className="text-slate-400 hover:text-white">
@@ -215,7 +219,7 @@ export function MainLayout() {
                     onClick={() => setIsMobileMenuOpen(false)}
                     className={({ isActive }) => cn(
                       "flex items-center gap-3 px-4 py-3 text-sm font-medium transition-all rounded-xl",
-                      isActive ? "bg-indigo-600 text-white" : "text-slate-400 hover:bg-white/5"
+                      isActive ? "bg-accent text-white" : "text-slate-400 hover:bg-white/5"
                     )}
                   >
                     <item.icon className="w-5 h-5" />
@@ -246,7 +250,7 @@ export function MainLayout() {
               onClick={() => setIsMobileMenuOpen(true)}
               className="lg:hidden w-10 h-10 flex items-center justify-center bg-white/5 border border-white/10 rounded-xl text-white"
             >
-              <LayoutDashboard className="w-5 h-5 text-indigo-400" />
+              <LayoutDashboard className="w-5 h-5 text-accent" />
             </button>
             <div className="min-w-0">
               <div className="hidden lg:flex items-center gap-3 text-slate-400 mb-1">
@@ -261,13 +265,13 @@ export function MainLayout() {
           
           <div className="flex gap-3 lg:gap-6">
             <div className="bg-white/5 border border-white/10 rounded-2xl px-3 lg:px-5 py-2 lg:py-3 flex items-center gap-3 shadow-sm hidden sm:flex">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+              <span className="w-2 h-2 rounded-full bg-accent animate-pulse"></span>
               <span className="text-[10px] lg:text-xs font-semibold text-slate-200">Sync: Active</span>
             </div>
-            <div className="bg-indigo-600/10 border border-indigo-500/20 rounded-2xl px-3 lg:px-5 py-2 lg:py-3 flex items-center gap-3">
+            <div className="bg-accent/10 border border-accent-border rounded-2xl px-3 lg:px-5 py-2 lg:py-3 flex items-center gap-3">
               <div className="flex flex-col items-end">
-                <span className="text-[8px] lg:text-[10px] font-bold text-indigo-300 uppercase tracking-widest">Region</span>
-                <span className="text-xs lg:text-sm font-mono font-bold text-indigo-100">{org?.currency || 'USD'}</span>
+                <span className="text-[8px] lg:text-[10px] font-bold text-accent/60 uppercase tracking-widest">Region</span>
+                <span className="text-xs lg:text-sm font-mono font-bold text-accent">{org?.currency || 'USD'}</span>
               </div>
             </div>
           </div>

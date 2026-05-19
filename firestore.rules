@@ -48,7 +48,8 @@ service cloud.firestore {
       return data.keys().hasAll(['name', 'ownerId', 'createdAt', 'currency'])
         && data.name is string && data.name.size() > 0 && data.name.size() <= 200
         && data.ownerId == request.auth.uid
-        && data.createdAt == request.time;
+        && data.createdAt == request.time
+        && (data.keys().hasOnly(['name', 'ownerId', 'createdAt', 'updatedAt', 'currency', 'plan', 'taxRate', 'accentColor']));
     }
 
     function isValidUserProfile(data) {
@@ -63,7 +64,8 @@ service cloud.firestore {
         && data.name is string && data.name.size() > 0 && data.name.size() <= 200
         && data.price is number && data.price >= 0
         && data.stock is number
-        && (data.keys().hasOnly(['orgId', 'name', 'price', 'cost', 'stock', 'sku', 'barcode', 'category', 'unit', 'minStock', 'imageUrl', 'createdAt', 'updatedAt']));
+        && (!('isGuideItem' in data) || data.isGuideItem is bool)
+        && (data.keys().hasOnly(['orgId', 'name', 'price', 'cost', 'stock', 'sku', 'barcode', 'category', 'subCategory', 'unit', 'minStock', 'imageUrl', 'createdAt', 'updatedAt', 'hasVariants', 'variants', 'isGuideItem']));
     }
 
     function isValidSale(data) {
@@ -110,8 +112,8 @@ service cloud.firestore {
     match /orgs/{orgId} {
       allow get: if isValidId(orgId) && isOrgMember(orgId);
       allow create: if isSignedIn() && isEmailVerified() && isValidOrg(incoming());
-      allow update: if isOrgAdmin(orgId)
-        && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'currency', 'updatedAt'])
+      allow update: if (isOrgAdmin(orgId) || existing().ownerId == request.auth.uid)
+        && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'currency', 'taxRate', 'accentColor', 'updatedAt'])
         && incoming().ownerId == existing().ownerId;
 
       // Products subcollection
@@ -138,6 +140,14 @@ service cloud.firestore {
         allow list: if isOrgMember(orgId);
         allow get: if isOrgMember(orgId);
         allow create: if isOrgMember(orgId) && isValidSale(incoming()) && incoming().orgId == orgId;
+        allow update: if false;
+        allow delete: if isOrgAdmin(orgId);
+      }
+
+      // Audit subcollection
+      match /audit/{auditId} {
+        allow list, get: if isOrgAdmin(orgId);
+        allow create: if isOrgMember(orgId);
         allow update, delete: if false;
       }
     }
