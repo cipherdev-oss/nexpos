@@ -1,15 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../lib/AuthContext';
-import { db, handleFirestoreError, OperationType, Product } from '../lib/firebase';
+import { db, handleFirestoreError, OperationType, Product, Category } from '../lib/firebase';
 import { collection, query, onSnapshot, addDoc, updateDoc, deleteDoc, doc, serverTimestamp, orderBy } from 'firebase/firestore';
-import { Button, Card, Input, MonospaceValue, cn } from './UI';
-import { Plus, Search, Package, AlertTriangle, Edit2, Trash2, X, Check } from 'lucide-react';
+import { Button, Card, Input, MonospaceValue, cn, formatCurrency } from './UI';
+import { Plus, Search, Package, AlertTriangle, Edit2, Trash2, X, Check, Filter } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 export function InventoryList() {
-  const { org } = useAuth();
+  const { org, profile } = useAuth();
   const [products, setProducts] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [search, setSearch] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('all');
   const [isAdding, setIsAdding] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
@@ -22,20 +24,35 @@ export function InventoryList() {
   useEffect(() => {
     if (!org?.id) return;
 
-    const q = query(
+    // Fetch Products
+    const productsQ = query(
       collection(db, 'orgs', org.id, 'products'),
       orderBy('createdAt', 'desc')
     );
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const prods = snapshot.docs.map(doc => ({ ...doc.data() as Product, id: doc.id }));
-      setProducts(prods);
+    const unsubscribeProducts = onSnapshot(productsQ, (snapshot) => {
+      setProducts(snapshot.docs.map(doc => ({ ...doc.data() as Product, id: doc.id })));
       setLoading(false);
     }, (error) => {
       handleFirestoreError(error, OperationType.LIST, `orgs/${org.id}/products`);
     });
 
-    return unsubscribe;
+    // Fetch Categories
+    const categoriesQ = query(
+      collection(db, 'orgs', org.id, 'categories'),
+      orderBy('name', 'asc')
+    );
+
+    const unsubscribeCategories = onSnapshot(categoriesQ, (snapshot) => {
+      setCategories(snapshot.docs.map(doc => ({ ...doc.data() as Category, id: doc.id })));
+    }, (error) => {
+      console.error("Categories fetch error:", error);
+    });
+
+    return () => {
+      unsubscribeProducts();
+      unsubscribeCategories();
+    };
   }, [org?.id]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -43,14 +60,23 @@ export function InventoryList() {
     if (!org?.id) return;
 
     try {
+      const { id, ...sanitizedData } = formData;
+      const cleanData = {
+        ...sanitizedData,
+        price: Number(sanitizedData.price) || 0,
+        cost: Number(sanitizedData.cost) || 0,
+        stock: Number(sanitizedData.stock) || 0,
+        minStock: Number(sanitizedData.minStock) || 0,
+      };
+
       if (editingProduct?.id) {
         await updateDoc(doc(db, 'orgs', org.id, 'products', editingProduct.id), {
-          ...formData,
+          ...cleanData,
           updatedAt: serverTimestamp()
         });
       } else {
         await addDoc(collection(db, 'orgs', org.id, 'products'), {
-          ...formData,
+          ...cleanData,
           orgId: org.id,
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp()
@@ -58,7 +84,7 @@ export function InventoryList() {
       }
       resetForm();
     } catch (error) {
-      handleFirestoreError(error, OperationType.WRITE, 'inventory');
+      handleFirestoreError(error, OperationType.WRITE, `orgs/${org.id}/products`);
     }
   };
 
@@ -75,46 +101,71 @@ export function InventoryList() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!org?.id || !confirm('Permanently delete this core asset?')) return;
+    if (!org?.id) return;
     try {
       await deleteDoc(doc(db, 'orgs', org.id, 'products', id));
     } catch (error) {
-      handleFirestoreError(error, OperationType.DELETE, `inventory/${id}`);
+      console.error("Deletion failed:", error);
+      handleFirestoreError(error, OperationType.DELETE, `orgs/${org.id}/products/${id}`);
     }
   };
 
-  const filteredProducts = products.filter(p => 
-    p.name.toLowerCase().includes(search.toLowerCase()) || 
-    p.sku.toLowerCase().includes(search.toLowerCase()) ||
-    p.barcode.toLowerCase().includes(search.toLowerCase())
-  );
+  const filteredProducts = products.filter(p => {
+    const matchesSearch = p.name.toLowerCase().includes(search.toLowerCase()) || 
+      p.sku.toLowerCase().includes(search.toLowerCase()) ||
+      p.barcode.toLowerCase().includes(search.toLowerCase());
+    
+    const matchesCategory = categoryFilter === 'all' || p.category === categoryFilter;
+    
+    return matchesSearch && matchesCategory;
+  });
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-end">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-white tracking-tight">Inventory Hub</h1>
-          <p className="text-sm text-slate-400">Manage your product nodes and stock levels</p>
+          <h1 className="text-2xl lg:text-3xl font-bold text-white tracking-tight">Inventory Hub</h1>
+          <div className="flex items-center gap-2">
+            <p className="text-xs lg:text-sm text-slate-400">Node management & stock levels</p>
+            {profile && (
+              <span className="px-2 py-0.5 bg-indigo-500/10 border border-indigo-500/20 rounded text-[8px] font-bold text-indigo-400 uppercase tracking-widest">
+                Tier: {profile.role}
+              </span>
+            )}
+          </div>
         </div>
-        <Button onClick={() => setIsAdding(true)} className="gap-2">
+        <Button onClick={() => setIsAdding(true)} className="w-full sm:w-auto gap-2">
           <Plus className="w-5 h-5" />
           Register Asset
         </Button>
       </div>
 
-      <div className="flex gap-4 items-center bg-white/5 p-6 rounded-2xl border border-white/10 backdrop-blur-md">
-        <div className="relative flex-1">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-center bg-white/5 p-4 lg:p-6 rounded-2xl border border-white/10 backdrop-blur-md">
+        <div className="relative md:col-span-2">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 lg:w-5 h-4 lg:h-5 text-slate-500" />
           <input 
-            className="w-full bg-slate-900/50 border border-white/10 rounded-xl pl-12 pr-4 py-3 text-sm text-slate-200 focus:outline-none focus:border-indigo-500 transition-all placeholder:text-slate-600"
-            placeholder="Search assets by name, sku, barcode..."
+            className="w-full bg-slate-900/50 border border-white/10 rounded-xl pl-10 lg:pl-12 pr-4 py-2.5 lg:py-3 text-xs lg:text-sm text-slate-200 focus:outline-none focus:border-indigo-500 transition-all placeholder:text-slate-600"
+            placeholder="Search assets..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
-        <div className="flex gap-8 px-6 border-l border-white/10">
-          <MonospaceValue label="Total SKUs" value={products.length} />
-          <MonospaceValue label="Global Stock" value={products.reduce((acc, p) => acc + p.stock, 0)} />
+        <div className="relative">
+          <Filter className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+          <select 
+            className="w-full bg-slate-900/50 border border-white/10 rounded-xl pl-10 pr-4 py-2.5 lg:py-3 text-xs lg:text-sm text-slate-200 focus:outline-none focus:border-indigo-500 appearance-none transition-all"
+            value={categoryFilter}
+            onChange={(e) => setCategoryFilter(e.target.value)}
+          >
+            <option value="all" className="bg-slate-900">All Categories</option>
+            {categories.map(cat => (
+              <option key={cat.id} value={cat.name} className="bg-slate-900">{cat.name}</option>
+            ))}
+          </select>
+        </div>
+        <div className="flex gap-6 lg:gap-8 px-4 lg:px-6 border-t md:border-t-0 md:border-l border-white/10 pt-4 md:pt-0">
+          <MonospaceValue label="SKUs" value={filteredProducts.length} />
+          <MonospaceValue label="Stock" value={filteredProducts.reduce((acc, p) => acc + p.stock, 0)} />
         </div>
       </div>
 
@@ -144,27 +195,58 @@ export function InventoryList() {
                       <Input placeholder="Internal SKU" value={formData.sku} onChange={e => setFormData({...formData, sku: e.target.value})} />
                     </div>
                     <div className="space-y-1.5">
-                      <label className="text-[10px] font-mono text-stone-600 uppercase tracking-widest">Barcode</label>
-                      <Input placeholder="EAN/UPC" value={formData.barcode} onChange={e => setFormData({...formData, barcode: e.target.value})} />
+                      <label className="text-[10px] font-mono text-stone-600 uppercase tracking-widest">Category</label>
+                      <select 
+                        className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-slate-200 text-sm focus:border-indigo-500 focus:outline-none appearance-none"
+                        value={formData.category} 
+                        onChange={e => setFormData({...formData, category: e.target.value})} 
+                        required
+                      >
+                        <option value="" disabled className="bg-slate-900">Select Category</option>
+                        {categories.map(cat => (
+                          <option key={cat.id} value={cat.name} className="bg-slate-900">{cat.name}</option>
+                        ))}
+                      </select>
                     </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-mono text-stone-600 uppercase tracking-widest">Barcode</label>
+                    <Input placeholder="EAN/UPC" value={formData.barcode} onChange={e => setFormData({...formData, barcode: e.target.value})} />
                   </div>
                 </div>
 
                 <div className="space-y-4">
                   <div className="space-y-1.5">
                     <label className="text-[10px] font-mono text-stone-600 uppercase tracking-widest">Sale Price ({org?.currency})</label>
-                    <Input type="number" step="0.01" value={formData.price} onChange={e => setFormData({...formData, price: parseFloat(e.target.value)})} required />
+                    <Input 
+                      type="number" 
+                      step="0.01" 
+                      value={isNaN(formData.price!) ? '' : formData.price} 
+                      onChange={e => setFormData({...formData, price: parseFloat(e.target.value) || 0})} 
+                      required 
+                    />
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-[10px] font-mono text-stone-600 uppercase tracking-widest">Unit Cost ({org?.currency})</label>
-                    <Input type="number" step="0.01" value={formData.cost} onChange={e => setFormData({...formData, cost: parseFloat(e.target.value)})} required />
+                    <Input 
+                      type="number" 
+                      step="0.01" 
+                      value={isNaN(formData.cost!) ? '' : formData.cost} 
+                      onChange={e => setFormData({...formData, cost: parseFloat(e.target.value) || 0})} 
+                      required 
+                    />
                   </div>
                 </div>
 
                 <div className="space-y-4">
                   <div className="space-y-1.5">
                     <label className="text-[10px] font-mono text-stone-600 uppercase tracking-widest">Initial Stock</label>
-                    <Input type="number" value={formData.stock} onChange={e => setFormData({...formData, stock: parseInt(e.target.value)})} required />
+                    <Input 
+                      type="number" 
+                      value={isNaN(formData.stock!) ? '' : formData.stock} 
+                      onChange={e => setFormData({...formData, stock: parseInt(e.target.value) || 0})} 
+                      required 
+                    />
                   </div>
                   <div className="flex gap-2 pt-5">
                     <Button type="submit" className="flex-1 gap-2">
@@ -196,11 +278,19 @@ export function InventoryList() {
               <div className="w-12 h-12 bg-slate-800 rounded-xl flex items-center justify-center border border-white/10">
                 <Package className="w-6 h-6 text-slate-400 group-hover:text-indigo-400 transition-colors" />
               </div>
-              <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+              <div className="flex gap-2 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity">
                 <Button variant="ghost" size="sm" onClick={() => startEdit(p)} className="p-2 h-9 w-9 rounded-lg">
                   <Edit2 className="w-4 h-4" />
                 </Button>
-                <Button variant="danger" size="sm" onClick={() => handleDelete(p.id!)} className="p-2 h-9 w-9 rounded-lg">
+                <Button 
+                  variant="danger" 
+                  size="sm" 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDelete(p.id!);
+                  }} 
+                  className="p-2 h-9 w-9 rounded-lg relative z-10"
+                >
                   <Trash2 className="w-4 h-4" />
                 </Button>
               </div>
@@ -227,7 +317,7 @@ export function InventoryList() {
               <div className="text-right">
                 <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1 block">Unit Price</span>
                 <span className="text-xl font-bold text-indigo-400">
-                  ${p.price.toFixed(2)}
+                  {formatCurrency(p.price, org?.currency)}
                 </span>
               </div>
             </div>

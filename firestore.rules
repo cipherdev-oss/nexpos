@@ -34,23 +34,18 @@ service cloud.firestore {
 
     function isOrgMember(orgId) {
       let userData = getUserData();
-      return isSignedIn() && isEmailVerified() && userData != null && userData.orgId == orgId;
-    }
-
-    function isOrgOwner(orgId) {
-      let userData = getUserData();
-      return isOrgMember(orgId) && userData.role == 'owner';
+      return isSignedIn() && userData != null && userData.orgId == orgId;
     }
 
     function isOrgAdmin(orgId) {
       let userData = getUserData();
-      return isOrgMember(orgId) && (userData.role == 'owner' || userData.role == 'admin');
+      return isSignedIn() && userData != null && userData.orgId == orgId && (userData.role == 'owner' || userData.role == 'admin');
     }
 
     // --- Validations ---
 
     function isValidOrg(data) {
-      return data.keys().hasAll(['name', 'ownerId', 'createdAt'])
+      return data.keys().hasAll(['name', 'ownerId', 'createdAt', 'currency'])
         && data.name is string && data.name.size() > 0 && data.name.size() <= 200
         && data.ownerId == request.auth.uid
         && data.createdAt == request.time;
@@ -68,7 +63,7 @@ service cloud.firestore {
         && data.name is string && data.name.size() > 0 && data.name.size() <= 200
         && data.price is number && data.price >= 0
         && data.stock is number
-        && (data.keys().hasOnly(['orgId', 'name', 'price', 'stock', 'sku', 'barcode', 'category', 'unit', 'minStock', 'imageUrl', 'createdAt', 'updatedAt']));
+        && (data.keys().hasOnly(['orgId', 'name', 'price', 'cost', 'stock', 'sku', 'barcode', 'category', 'unit', 'minStock', 'imageUrl', 'createdAt', 'updatedAt']));
     }
 
     function isValidSale(data) {
@@ -77,7 +72,8 @@ service cloud.firestore {
         && data.userId == request.auth.uid
         && data.items is list && data.items.size() > 0 && data.items.size() <= 50
         && data.total is number && data.total >= 0
-        && data.createdAt == request.time;
+        && data.createdAt == request.time
+        && (data.keys().hasOnly(['orgId', 'userId', 'items', 'subtotal', 'tax', 'total', 'paymentMethod', 'cashTendered', 'changeDue', 'id', 'createdAt']));
     }
 
     // --- Collections ---
@@ -114,8 +110,8 @@ service cloud.firestore {
     match /orgs/{orgId} {
       allow get: if isValidId(orgId) && isOrgMember(orgId);
       allow create: if isSignedIn() && isEmailVerified() && isValidOrg(incoming());
-      allow update: if isOrgOwner(orgId)
-        && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'currency'])
+      allow update: if isOrgAdmin(orgId)
+        && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'currency', 'updatedAt'])
         && incoming().ownerId == existing().ownerId;
 
       // Products subcollection
@@ -123,8 +119,17 @@ service cloud.firestore {
         allow list: if isOrgMember(orgId);
         allow get: if isOrgMember(orgId);
         allow create: if isOrgAdmin(orgId) && isValidProduct(incoming()) && incoming().orgId == orgId;
-        allow update: if isOrgAdmin(orgId) && isValidProduct(incoming())
+        allow update: if (isOrgAdmin(orgId) || (isOrgMember(orgId) && incoming().diff(existing()).affectedKeys().hasOnly(['stock', 'updatedAt'])))
+          && isValidProduct(incoming())
           && incoming().orgId == existing().orgId;
+        allow delete: if isOrgAdmin(orgId);
+      }
+
+      // Categories subcollection
+      match /categories/{categoryId} {
+        allow list: if isOrgMember(orgId);
+        allow get: if isOrgMember(orgId);
+        allow create, update: if isOrgAdmin(orgId) && incoming().orgId == orgId;
         allow delete: if isOrgAdmin(orgId);
       }
 

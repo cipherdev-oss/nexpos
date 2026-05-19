@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../lib/AuthContext';
 import { db, handleFirestoreError, OperationType, Sale } from '../lib/firebase';
 import { collection, query, onSnapshot, orderBy, limit, where, Timestamp } from 'firebase/firestore';
-import { Card, MonospaceValue, cn } from './UI';
+import { Card, MonospaceValue, cn, formatCurrency } from './UI';
 import { 
   TrendingUp, 
   Users, 
@@ -72,12 +72,18 @@ export function Dashboard() {
       if (sale.createdAt && sale.createdAt.toDate) {
         const date = format(sale.createdAt.toDate(), 'MMM dd');
         if (dailyMap[date] !== undefined) {
-          dailyMap[date] += sale.total;
+          const amount = Number(sale.total);
+          if (!isNaN(amount)) {
+            dailyMap[date] += amount;
+          }
         }
       }
     });
 
-    return Object.entries(dailyMap).map(([name, total]) => ({ name, total }));
+    return Object.entries(dailyMap).map(([name, total]) => ({ 
+      name, 
+      total: isNaN(total) ? 0 : total 
+    }));
   };
 
   const stats = [
@@ -137,8 +143,7 @@ export function Dashboard() {
             <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1">{stat.label}</h3>
             <div className="flex items-baseline gap-2">
               <span className="text-3xl font-bold text-white tracking-tight">
-                {typeof stat.value === 'number' && stat.label.includes('Volume') ? ('$' + stat.value.toLocaleString(undefined, { minimumFractionDigits: 2 })) : 
-                 typeof stat.value === 'number' && stat.label.includes('Avg') ? ('$' + stat.value.toFixed(2)) :
+                {typeof stat.value === 'number' && (stat.label.includes('Volume') || stat.label.includes('Avg')) ? formatCurrency(stat.value, org?.currency) : 
                  stat.value}
               </span>
             </div>
@@ -221,7 +226,7 @@ export function Dashboard() {
                       {sale.items.length} Items Distributed
                     </span>
                     <span className="text-sm font-bold text-indigo-400">
-                      +${sale.total.toFixed(2)}
+                      +{formatCurrency(sale.total, org?.currency)}
                     </span>
                   </div>
                   <div className="flex justify-between items-center">

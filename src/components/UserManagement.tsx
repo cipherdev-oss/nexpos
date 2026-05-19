@@ -91,23 +91,23 @@ export function UserManagement() {
   }
 
   return (
-    <div className="space-y-8 pb-12">
-      <div className="flex justify-between items-end">
+    <div className="space-y-6 lg:space-y-8 pb-12">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 lg:gap-6">
         <div>
-          <h1 className="text-3xl font-bold text-white tracking-tight">Identity Management</h1>
-          <p className="text-sm text-slate-400">Control access nodes and permission tiers</p>
+          <h1 className="text-2xl lg:text-3xl font-bold text-white tracking-tight">Identity Management</h1>
+          <p className="text-xs lg:text-sm text-slate-400">Control access nodes and permission tiers</p>
         </div>
-        <Button onClick={() => setIsAdding(true)} className="gap-2">
+        <Button onClick={() => setIsAdding(true)} className="w-full sm:w-auto gap-2">
           <UserPlus className="w-5 h-5" />
-          Provision New User
+          Provision User
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
         <Card title="Workspace Quota" className="bg-indigo-600/5 border-indigo-500/20">
           <div className="flex items-center justify-between">
             <MonospaceValue label="Active Seats" value={`${users.length} / 10`} />
-            <div className="w-12 h-12 rounded-2xl bg-indigo-500/20 flex items-center justify-center">
+            <div className="w-10 h-10 lg:w-12 lg:h-12 rounded-2xl bg-indigo-500/20 flex items-center justify-center">
               <Users className="w-6 h-6 text-indigo-400" />
             </div>
           </div>

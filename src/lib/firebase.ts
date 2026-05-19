@@ -1,5 +1,16 @@
 import { initializeApp } from 'firebase/app';
-import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged, User } from 'firebase/auth';
+import { 
+  getAuth, 
+  GoogleAuthProvider, 
+  GithubAuthProvider, 
+  signInWithPopup, 
+  signOut, 
+  onAuthStateChanged, 
+  User,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  sendPasswordResetEmail
+} from 'firebase/auth';
 import { 
   getFirestore, 
   doc, 
@@ -25,6 +36,7 @@ const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
 export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
+export const githubProvider = new GithubAuthProvider();
 
 // Error Handler helper
 export enum OperationType {
@@ -66,7 +78,9 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
 
 // Auth Helpers
 export const signInWithGoogle = () => signInWithPopup(auth, googleProvider);
+export const signInWithGithub = () => signInWithPopup(auth, githubProvider);
 export const logOut = () => signOut(auth);
+export { signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail };
 
 // Types
 export interface Organization {
@@ -85,6 +99,14 @@ export interface UserProfile {
   orgId: string;
   role: 'owner' | 'admin' | 'cashier';
   createdAt: any;
+}
+
+export interface Category {
+  id?: string;
+  orgId: string;
+  name: string;
+  description?: string;
+  createdAt?: any;
 }
 
 export interface Product {

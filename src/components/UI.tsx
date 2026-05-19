@@ -73,6 +73,18 @@ export function Card({ className, children, title, ...props }: React.HTMLAttribu
   );
 }
 
+export function formatCurrency(amount: number, currencyCode: string = 'USD') {
+  const symbols: Record<string, string> = {
+    'USD': '$',
+    'LKR': 'Rs.',
+    'EUR': '€',
+    'GBP': '£',
+    'INR': '₹'
+  };
+  const symbol = symbols[currencyCode] || currencyCode;
+  return `${symbol}${amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
 export function MonospaceValue({ value, label, className }: { value: string | number, label: string, className?: string }) {
   return (
     <div className={cn("flex flex-col", className)}>

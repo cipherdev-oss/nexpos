@@ -9,6 +9,7 @@ import { motion } from 'motion/react';
 export function Onboarding() {
   const { user, refreshProfile } = useAuth();
   const [name, setName] = useState('');
+  const [displayName, setDisplayName] = useState(user?.displayName || '');
   const [loading, setLoading] = useState(false);
 
   const handleCreateOrg = async (e: React.FormEvent) => {
@@ -32,7 +33,7 @@ export function Onboarding() {
       // Create User Profile
       await setDoc(doc(db, 'users', user.uid), {
         email: user.email,
-        displayName: user.displayName,
+        displayName: displayName || user.email?.split('@')[0] || 'Unknown User',
         orgId: orgId,
         role: 'owner',
         createdAt: now
@@ -56,7 +57,7 @@ export function Onboarding() {
         className="w-full max-w-lg relative z-10"
       >
         <Card title="Workspace Initialization">
-          <form onSubmit={handleCreateOrg} className="space-y-10 py-8 px-4">
+          <form onSubmit={handleCreateOrg} className="space-y-8 py-6 px-4">
             <div className="flex items-center gap-6">
               <div className="w-16 h-16 bg-indigo-500/10 border border-indigo-500/20 rounded-2xl flex items-center justify-center shadow-lg">
                 <Store className="w-8 h-8 text-indigo-400" />
@@ -69,13 +70,22 @@ export function Onboarding() {
 
             <div className="space-y-6">
               <div className="space-y-2">
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] ml-1">Operator Name</label>
+                <Input 
+                  placeholder="Your Full Name"
+                  className="h-12"
+                  value={displayName}
+                  onChange={(e) => setDisplayName(e.target.value)}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
                 <label className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em] ml-1">Entity / Business Name</label>
                 <Input 
                   placeholder="e.g. Neo Tokyo Retail"
-                  className="h-14 text-lg"
+                  className="h-12"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  autoFocus
                   required
                 />
               </div>

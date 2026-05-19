@@ -1,6 +1,6 @@
 {
-  "name": "NexPOS",
-  "description": "A modern, cloud-native POS and inventory management system inspired by Aronium.",
+  "name": "NestPOS Cloud",
+  "description": "A high-performance, cloud-native POS and inventory management system with real-time terminal synchronization and advanced security protocols.",
   "requestFramePermissions": [],
-  "majorCapabilities": []
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

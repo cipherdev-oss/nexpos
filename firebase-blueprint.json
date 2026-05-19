@@ -52,6 +52,7 @@
       "description": "Transaction records.",
       "type": "object",
       "properties": {
+        "id": { "type": "string", "description": "Human readable receipt ID" },
         "orgId": { "type": "string" },
         "userId": { "type": "string" },
         "items": {
@@ -61,7 +62,9 @@
         "subtotal": { "type": "number" },
         "tax": { "type": "number" },
         "total": { "type": "number" },
-        "paymentMethod": { "type": "string" },
+        "paymentMethod": { "type": "string", "enum": ["cash", "card"] },
+        "cashTendered": { "type": "number" },
+        "changeDue": { "type": "number" },
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["orgId", "userId", "items", "total", "createdAt"]
@@ -79,6 +82,10 @@
     "/orgs/{orgId}/products/{productId}": {
       "schema": "Product",
       "description": "Products within an organization"
+    },
+    "/orgs/{orgId}/categories/{categoryId}": {
+      "schema": "Category",
+      "description": "Classification clusters for products"
     },
     "/orgs/{orgId}/sales/{saleId}": {
       "schema": "Sale",
