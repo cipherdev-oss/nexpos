@@ -181,19 +181,19 @@ export function Dashboard() {
         <motion.div 
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="p-6 lg:p-8 rounded-3xl bg-gradient-to-br from-emerald-500/10 via-emerald-600/5 to-transparent border border-emerald-500/20 shadow-2xl relative overflow-hidden group cursor-default"
+          className="p-6 lg:p-8 rounded-3xl bg-gradient-to-br from-accent/15 via-accent/5 to-transparent border border-accent/25 shadow-2xl relative overflow-hidden group cursor-default"
         >
           {/* Sparkles / Ambient glow inside */}
-          <div className="absolute top-0 right-0 w-[300px] h-[300px] bg-emerald-500/5 rounded-full blur-3xl -mr-32 -mt-32 pointer-events-none group-hover:bg-emerald-500/10 transition-all duration-700" />
+          <div className="absolute top-0 right-0 w-[300px] h-[300px] bg-accent/5 rounded-full blur-3xl -mr-32 -mt-32 pointer-events-none group-hover:bg-accent/10 transition-all duration-700" />
           
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 relative z-10">
             <div className="space-y-3">
               <div className="flex items-center gap-2">
                 <span className="flex h-2 w-2 relative">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-accent"></span>
                 </span>
-                <span className="text-[10px] font-black text-emerald-400 uppercase tracking-[0.2em]">Highest Profit Yield Champion (7d)</span>
+                <span className="text-[10px] font-black text-accent uppercase tracking-[0.2em]">Highest Profit Yield Champion (7d)</span>
               </div>
               <h2 className="text-xl lg:text-3xl font-black text-white tracking-tight leading-tighter">
                 {topProfitProducts[0].name}
@@ -206,7 +206,7 @@ export function Dashboard() {
             <div className="flex flex-wrap items-center gap-6 lg:gap-10 border-t lg:border-t-0 lg:border-l border-white/5 pt-6 lg:pt-0 lg:pl-10">
               <div className="space-y-1">
                 <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest block">Net Profit Contribution</span>
-                <span className="text-xl lg:text-3xl font-black text-emerald-400">
+                <span className="text-xl lg:text-3xl font-black text-accent animate-pulse">
                   +{formatCurrency(topProfitProducts[0].profit, org?.currency)}
                 </span>
               </div>
@@ -248,7 +248,7 @@ export function Dashboard() {
             {topProfitProducts.map((product, idx) => (
               <div key={idx} className="p-4 bg-white/5 border border-white/10 rounded-2xl flex items-center justify-between group hover:bg-white/10 transition-all">
                 <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-500 text-[10px] font-black">
+                  <div className="w-8 h-8 rounded-lg bg-accent/10 border border-accent/25 flex items-center justify-center text-accent text-[10px] font-black">
                     #{idx + 1}
                   </div>
                   <div className="flex flex-col">
@@ -257,7 +257,7 @@ export function Dashboard() {
                   </div>
                 </div>
                 <div className="text-right">
-                   <div className="text-xs font-black text-emerald-400">+{formatCurrency(product.profit, org?.currency)}</div>
+                   <div className="text-xs font-black text-accent">+{formatCurrency(product.profit, org?.currency)}</div>
                    <div className="text-[8px] font-bold text-slate-600 uppercase tracking-tighter">Net Yield</div>
                 </div>
               </div>
@@ -269,10 +269,10 @@ export function Dashboard() {
               </div>
             )}
           </div>
-          <div className="mt-8 p-4 bg-emerald-500/10 border border-emerald-500/20 rounded-xl">
+          <div className="mt-8 p-4 bg-accent/10 border border-accent/20 rounded-xl">
              <div className="flex items-center gap-2 mb-1">
-               <TrendingUp className="w-3 h-3 text-emerald-400" />
-               <span className="text-[10px] font-black text-emerald-400 uppercase tracking-widest">Strategic Insight</span>
+               <TrendingUp className="w-3 h-3 text-accent" />
+               <span className="text-[10px] font-black text-accent uppercase tracking-widest">Strategic Insight</span>
              </div>
              <p className="text-[10px] font-medium text-slate-400 leading-relaxed">
                {topProfitProducts[0] 

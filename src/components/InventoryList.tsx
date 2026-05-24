@@ -1138,8 +1138,8 @@ export function InventoryList() {
               <span>{p.category || 'General'}</span>
             </div>
 
-            <div className="mt-auto pt-6 border-t border-white/5 flex justify-between items-end">
-              <div className="flex flex-col">
+            <div className="mt-auto pt-6 border-t border-white/5 flex flex-wrap gap-4 items-end justify-between">
+              <div className="flex flex-col flex-shrink-0">
                 <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">Stock Level</span>
                 <div className={cn(
                   "flex items-center gap-2 text-lg font-bold",
@@ -1149,11 +1149,11 @@ export function InventoryList() {
                   {p.stock <= p.minStock && <AlertTriangle className="w-4 h-4" />}
                 </div>
               </div>
-              <div className="text-right">
+              <div className="text-right flex-shrink-0">
                 <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1 block">
                   {p.hasVariants ? 'Price Range' : 'Unit Price'}
                 </span>
-                <span className={cn("font-bold text-accent", p.hasVariants ? "text-base" : "text-xl")}>
+                <span className={cn("font-bold text-accent block", p.hasVariants ? "text-sm sm:text-base" : "text-lg sm:text-xl")}>
                   {getPriceRange(p)}
                 </span>
               </div>

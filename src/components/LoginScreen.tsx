@@ -3,6 +3,7 @@ import { Button, Card, Input } from './UI';
 import { signInWithGoogle, signInWithGithub, signInWithEmailAndPassword, createUserWithEmailAndPassword } from '../lib/firebase';
 import { LogIn, Terminal, Mail, Lock, Github, UserPlus, Fingerprint } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import firebaseConfig from '../../firebase-applet-config.json';
 
 export function LoginScreen() {
   const [mode, setMode] = useState<'login' | 'signup'>('login');
@@ -11,16 +12,24 @@ export function LoginScreen() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [errorInfo, setErrorInfo] = useState<{ message: string; code?: string; provider?: string } | null>(null);
 
   const handleSocialLogin = async (provider: 'google' | 'github') => {
     try {
       setLoading(true);
       setError(null);
+      setErrorInfo(null);
       if (provider === 'google') await signInWithGoogle();
       else await signInWithGithub();
     } catch (err: any) {
       console.error('Social login failed', err);
-      setError(err.message || 'Authentication failed');
+      const msg = err.message || 'Authentication failed';
+      setError(msg);
+      setErrorInfo({
+        message: msg,
+        code: err.code || (msg.includes('operation-not-allowed') ? 'auth/operation-not-allowed' : undefined),
+        provider
+      });
     } finally {
       setLoading(false);
     }
@@ -30,6 +39,7 @@ export function LoginScreen() {
     e.preventDefault();
     setLoading(true);
     setError(null);
+    setErrorInfo(null);
     const { auth, signInWithEmailAndPassword, createUserWithEmailAndPassword } = await import('../lib/firebase');
     try {
       if (mode === 'login') {
@@ -40,11 +50,23 @@ export function LoginScreen() {
     } catch (err: any) {
       console.error('Email auth failed', err);
       let message = 'Authentication failed';
-      if (err.code === 'auth/user-not-found') message = 'No account found with this email';
-      else if (err.code === 'auth/wrong-password') message = 'Incorrect security credential';
-      else if (err.code === 'auth/email-already-in-use') message = 'This email is already registered';
-      else if (err.code === 'auth/weak-password') message = 'Credential strength insufficient';
+      if (err.code === 'auth/user-not-allowed' || err.code === 'auth/operation-not-allowed') {
+        message = 'This authentication provider is not enabled in the Firebase console. Please read instructions below.';
+      } else if (err.code === 'auth/user-not-found') {
+        message = 'No account found with this email';
+      } else if (err.code === 'auth/wrong-password') {
+        message = 'Incorrect security credential';
+      } else if (err.code === 'auth/email-already-in-use') {
+        message = 'This email is already registered';
+      } else if (err.code === 'auth/weak-password') {
+        message = 'Credential strength insufficient';
+      }
       setError(message);
+      setErrorInfo({
+        message: err.message || message,
+        code: err.code || (err.message && err.message.includes('operation-not-allowed') ? 'auth/operation-not-allowed' : undefined),
+        provider: 'email'
+      });
     } finally {
       setLoading(false);
     }
@@ -170,12 +192,6 @@ export function LoginScreen() {
                     </div>
                   </div>
 
-                  {error && (
-                    <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-[10px] font-bold text-red-400 uppercase tracking-widest animate-shake">
-                      Protocol Breach: {error}
-                    </div>
-                  )}
-
                   <Button 
                     type="submit"
                     disabled={loading}
@@ -214,6 +230,43 @@ export function LoginScreen() {
                 </motion.form>
               )}
             </AnimatePresence>
+
+            {error && (
+              <div className="space-y-4 pt-2">
+                {errorInfo?.code === 'auth/operation-not-allowed' || error.includes('operation-not-allowed') ? (
+                  <div className="p-4 bg-amber-500/10 border border-amber-500/20 rounded-2xl space-y-3 text-slate-250">
+                    <div className="flex items-center gap-2 text-amber-500 font-bold uppercase tracking-wider text-[10px]">
+                      <Fingerprint className="w-4 h-4 animate-pulse" />
+                      <span>Security Uplink Action Required</span>
+                    </div>
+                    <p className="text-slate-350 leading-relaxed text-[11px]">
+                      The sign-in method <strong className="text-white uppercase font-black">"{errorInfo?.provider || 'Auth Provider'}"</strong> is disabled in your Firebase console. Because of Firebase's safe-defaults policy, you must manually enable it.
+                    </p>
+                    <div className="space-y-2 pl-3 border-l-2 border-amber-500/30 text-[10px] text-slate-400 font-medium">
+                      <p>1. Access with a verified Google Account (active on sandbox) or use the link below to configure providers:</p>
+                      
+                      <div className="my-1.5">
+                        <a 
+                          href={`https://console.firebase.google.com/project/${firebaseConfig.projectId}/authentication/providers`}
+                          target="_blank" 
+                          rel="noreferrer"
+                          className="inline-flex items-center justify-center gap-2 w-full py-2 bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/30 text-amber-300 rounded-xl transition-all text-[9px] font-bold uppercase tracking-wider"
+                        >
+                          Configure Firebase Auth Providers ↗
+                        </a>
+                      </div>
+
+                      <p>2. Click <span className="text-slate-200">"Add new provider"</span>.</p>
+                      <p>3. Select <span className="text-white font-semibold">{errorInfo?.provider === 'email' ? 'Email/Password' : (errorInfo?.provider || 'Email/Password / Github').toUpperCase()}</span>, check <span className="text-slate-200">"Enable"</span>, and save.</p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-[10px] font-bold text-red-400 uppercase tracking-widest animate-shake">
+                    Protocol Breach: {error}
+                  </div>
+                )}
+              </div>
+            )}
 
             <div className="flex items-center gap-4 py-2">
               <div className="h-px flex-1 bg-white/5" />

@@ -327,12 +327,12 @@ export function CategoryManagement() {
                                         ⚡ Sandbox Standard
                                       </div>
                                     )}
-                                    <div className="flex items-center justify-between">
+                                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                                       <div className="flex items-center gap-3">
-                                        <div className="w-8 h-8 bg-slate-900 rounded-lg flex items-center justify-center border border-white/5">
+                                        <div className="w-8 h-8 bg-slate-900 rounded-lg flex items-center justify-center border border-white/5 flex-shrink-0">
                                           <Tag className="w-3.5 h-3.5 text-accent" />
                                         </div>
-                                        <div className="flex flex-col">
+                                        <div className="flex flex-col min-w-0">
                                           <span className="text-xs font-bold text-slate-200">
                                             {p.name}
                                           </span>
@@ -341,8 +341,8 @@ export function CategoryManagement() {
                                           )}
                                         </div>
                                       </div>
-                                      <div className="text-right">
-                                        <div className="text-[10px] font-bold text-accent">
+                                      <div className="text-left sm:text-right flex-shrink-0">
+                                        <div className="text-[10px] sm:text-xs font-bold text-accent">
                                           {p.hasVariants ? 'From ' : ''}{new Intl.NumberFormat('en-US', { style: 'currency', currency: org?.currency || 'USD' }).format(p.price)}
                                         </div>
                                         <div className={cn(
@@ -358,12 +358,12 @@ export function CategoryManagement() {
                                     {p.hasVariants && p.variants && p.variants.length > 0 && (
                                       <div className="pl-3 border-l border-white/10 space-y-2 mt-1">
                                         {p.variants.map((v, idx) => (
-                                          <div key={v.id || idx} className="flex items-center justify-between p-2 bg-black/20 rounded-xl border border-white/5 text-[10px] hover:border-white/10 transition-colors">
-                                            <div className="flex flex-col">
+                                          <div key={v.id || idx} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-2.5 bg-black/20 rounded-xl border border-white/5 text-[10px] hover:border-white/10 transition-colors">
+                                            <div className="flex flex-col min-w-0">
                                               <span className="font-bold text-slate-300">{v.name}</span>
                                               <span className="text-[8px] font-mono text-slate-500 uppercase tracking-wider">SKU: {v.sku} | Barcode: {v.barcode}</span>
                                             </div>
-                                            <div className="text-right flex items-center gap-2">
+                                            <div className="text-left sm:text-right flex items-center gap-2 flex-shrink-0">
                                               <span className="font-mono text-emerald-400 font-bold">{new Intl.NumberFormat('en-US', { style: 'currency', currency: org?.currency || 'USD' }).format(v.price)}</span>
                                               <span className="text-[8px] font-mono text-slate-400 bg-white/5 px-1.5 py-0.5 rounded">Stock: {v.stock}</span>
                                             </div>
