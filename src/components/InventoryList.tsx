@@ -25,6 +25,7 @@ export function InventoryList() {
   // Parent-Variant States
   const [hasVariants, setHasVariants] = useState(false);
   const [variantsList, setVariantsList] = useState<ProductVariant[]>([]);
+  const [editingVariantId, setEditingVariantId] = useState<string | null>(null);
   const [newVariant, setNewVariant] = useState({
     name: '',
     sku: '',
@@ -998,17 +999,47 @@ export function InventoryList() {
                         </div>
                         <div className="max-h-60 overflow-y-auto divide-y divide-white/5 no-scrollbar">
                           {variantsList.map((v) => (
-                            <div key={v.id} className="p-4 grid grid-cols-4 items-center group hover:bg-white/[0.02] transition-colors">
+                            <div 
+                              key={v.id} 
+                              className={cn(
+                                "p-4 grid grid-cols-4 items-center group transition-colors cursor-pointer",
+                                editingVariantId === v.id ? "bg-accent/10 border-l-2 border-accent" : "hover:bg-white/[0.02]"
+                              )}
+                              onClick={() => {
+                                setEditingVariantId(v.id);
+                                setNewVariant({
+                                  name: v.name,
+                                  sku: v.sku || '',
+                                  barcode: v.barcode || '',
+                                  price: v.price,
+                                  cost: v.cost,
+                                  stock: v.stock
+                                });
+                              }}
+                            >
                               <div className="flex flex-col min-w-0 pr-2">
                                 <span className="text-xs font-bold text-white truncate">{v.name}</span>
                                 <span className="text-[9px] font-mono text-slate-500">{v.sku || 'No SKU'}</span>
                               </div>
                               <span className="text-xs font-bold text-slate-300">{v.stock} pcs</span>
                               <span className="text-xs font-bold text-accent">{formatCurrency(v.price, org?.currency)}</span>
-                              <div className="flex justify-end pr-2">
+                              <div className="flex justify-end pr-2 gap-1">
                                 <button 
                                   type="button"
-                                  onClick={() => setVariantsList(prev => prev.filter(item => item.id !== v.id))}
+                                  className="p-2 text-slate-500 hover:text-accent transition-colors"
+                                >
+                                  <Edit2 className="w-3.5 h-3.5" />
+                                </button>
+                                <button 
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setVariantsList(prev => prev.filter(item => item.id !== v.id));
+                                    if (editingVariantId === v.id) {
+                                      setEditingVariantId(null);
+                                      setNewVariant({ name: '', sku: '', barcode: '', price: 0, cost: 0, stock: 0 });
+                                    }
+                                  }}
                                   className="p-2 text-slate-500 hover:text-red-400 transition-colors"
                                 >
                                   <Trash2 className="w-4 h-4" />
@@ -1030,9 +1061,25 @@ export function InventoryList() {
 
                     {/* Add Variant Formlet nested in parent card */}
                     <div className="border-t border-white/10 pt-6 space-y-5">
-                      <div className="flex items-center gap-3">
-                        <Plus className="w-4 h-4 text-accent" />
-                        <span className="text-[10px] font-black text-white uppercase tracking-[0.2em] block">Add Custom variation</span>
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-3">
+                          {editingVariantId ? <Edit2 className="w-4 h-4 text-accent" /> : <Plus className="w-4 h-4 text-accent" />}
+                          <span className="text-[10px] font-black text-white uppercase tracking-[0.2em] block">
+                            {editingVariantId ? 'Update existing variation' : 'Add Custom variation'}
+                          </span>
+                        </div>
+                        {editingVariantId && (
+                          <button 
+                            type="button"
+                            onClick={() => {
+                              setEditingVariantId(null);
+                              setNewVariant({ name: '', sku: '', barcode: '', price: 0, cost: 0, stock: 0 });
+                            }}
+                            className="text-[9px] font-bold text-slate-500 hover:text-white uppercase tracking-widest flex items-center gap-1"
+                          >
+                            <X className="w-3 h-3" /> Cancel Edit
+                          </button>
+                        )}
                       </div>
                       
                       <div className="space-y-4">
@@ -1109,15 +1156,29 @@ export function InventoryList() {
                               alert('Please provide a name/description for this variation.');
                               return;
                             }
-                            setVariantsList(prev => [...prev, {
-                              ...newVariant,
-                              id: 'VAR-' + Math.random().toString(36).substring(2, 7).toUpperCase()
-                            }]);
+                            
+                            if (editingVariantId) {
+                              setVariantsList(prev => prev.map(v => 
+                                v.id === editingVariantId 
+                                  ? { ...newVariant, id: v.id } as ProductVariant 
+                                  : v
+                              ));
+                              setEditingVariantId(null);
+                            } else {
+                              setVariantsList(prev => [...prev, {
+                                ...newVariant,
+                                id: 'VAR-' + Math.random().toString(36).substring(2, 7).toUpperCase()
+                              }]);
+                            }
                             setNewVariant({ name: '', sku: '', barcode: '', price: 0, cost: 0, stock: 0 });
                           }}
                           className="w-full h-12 text-xs font-bold border-accent/20 hover:border-accent text-accent bg-accent/5 hover:bg-accent hover:text-white transition-all shadow-lg shadow-accent/5"
                         >
-                          <Plus className="w-4 h-4 mr-2" /> Add Variation To List
+                          {editingVariantId ? (
+                            <><Check className="w-4 h-4 mr-2" /> Save Changes</>
+                          ) : (
+                            <><Plus className="w-4 h-4 mr-2" /> Add Variation To List</>
+                          )}
                         </Button>
                       </div>
                     </div>

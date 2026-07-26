@@ -25,6 +25,10 @@ import {
   ScanLine,
   ChevronRight,
   Package2,
+  Package,
+  Ticket,
+  Tag,
+  ArrowRight,
   Filter,
   Wifi,
   Printer,
@@ -38,6 +42,7 @@ import {
   Check
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { ThermalReceipt } from './ThermalReceipt';
 
 const COUPONS: Record<string, { percent: number; description: string }> = {
   'WELCOME10': { percent: 10, description: '10% Welcome Discount' },
@@ -55,6 +60,8 @@ export function POSEngine() {
   const [search, setSearch] = useState('');
   const [cart, setCart] = useState<SaleItem[]>([]);
   const [processing, setProcessing] = useState(false);
+  const [lastSale, setLastSale] = useState<any>(null);
+  const [cartView, setCartView] = useState<'items' | 'summary'>('items');
   const [successSale, setSuccessSale] = useState<{ id: string, total: number, change: number, tendered: number, items: SaleItem[], couponCode?: string | null } | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'card'>('cash');
   const [cashTendered, setCashTendered] = useState<string>('');
@@ -228,6 +235,7 @@ export function POSEngine() {
           total: variant.price
         }];
       });
+      setCartView('items');
       setSearch('');
     } else {
       if (product.stock <= 0) return;
@@ -251,6 +259,7 @@ export function POSEngine() {
           total: product.price
         }];
       });
+      setCartView('items');
       setSearch('');
     }
   };
@@ -287,7 +296,15 @@ export function POSEngine() {
   };
 
   const removeFromCart = (productId: string, variantId: string | undefined) => {
-    setCart(prev => prev.filter(item => !(item.productId === productId && item.variantId === variantId)));
+    setCart(prev => prev.filter(item => !(item.productId === productId && (item.variantId || undefined) === (variantId || undefined))));
+  };
+
+  const clearCart = () => {
+    if (cart.length === 0) return;
+    setCart([]);
+    setDiscountPercent(0);
+    setActiveCoupon(null);
+    showToast('Cart manifest cleared', 'info');
   };
 
   const addToCartByScan = (searchTerm: string) => {
@@ -421,7 +438,7 @@ export function POSEngine() {
 
         // 3. Create Sale record
         const saleRef = doc(collection(db, 'orgs', org.id, 'sales'));
-        transaction.set(saleRef, {
+        const saleData = {
           id: saleId,
           orgId: org.id,
           userId: profile.id,
@@ -436,6 +453,14 @@ export function POSEngine() {
           cashTendered: paymentMethod === 'cash' ? tendered : total,
           changeDue: change,
           createdAt: serverTimestamp()
+        };
+        transaction.set(saleRef, saleData);
+
+        // Prepare for printing
+        setLastSale({
+          ...saleData,
+          id: saleId,
+          timestamp: { toDate: () => new Date() }
         });
 
         // 4. Create Audit Log
@@ -468,6 +493,11 @@ export function POSEngine() {
       setActiveCoupon(null);
       setShowTenderModal(false);
       showToast(`Sale ${saleId} processed successfully!`, 'success');
+      
+      // Auto-trigger print
+      setTimeout(() => {
+        window.print();
+      }, 500);
     } catch (err: any) {
       showToast(err instanceof Error ? err.message : 'Transaction Failure', 'error');
     } finally {
@@ -690,7 +720,7 @@ export function POSEngine() {
   };
 
   return (
-    <div className="h-full lg:h-[calc(100vh-10rem)] flex flex-col lg:flex-row gap-6 lg:gap-8">
+    <div className="h-full lg:h-[calc(100vh-10rem)] flex flex-col lg:flex-row gap-6 lg:gap-8 no-print">
       {/* Mobile Switcher */}
       <div className="lg:hidden flex p-1 bg-white/5 border border-white/10 rounded-2xl">
         <button 
@@ -875,236 +905,312 @@ export function POSEngine() {
         "w-full lg:w-[400px] flex flex-col glass-panel rounded-3xl overflow-hidden shadow-2xl h-full",
         activeTab !== 'cart' && "hidden lg:flex"
       )}>
-        <header className="p-4 lg:p-6 border-b border-white/10 flex items-center justify-between bg-white/5">
-          <div className="flex items-center gap-3">
-            <ShoppingCart className="w-5 h-5 text-accent" />
-            <span className="text-xs lg:text-sm font-bold text-white uppercase tracking-widest">Cart Manifest</span>
+        <header className="p-4 lg:p-6 border-b border-white/10 flex flex-col gap-4 bg-white/5">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <ShoppingCart className="w-5 h-5 text-accent" />
+              <span className="text-xs lg:text-sm font-bold text-white uppercase tracking-widest">Cart Manifest</span>
+            </div>
+            <div className="flex items-center gap-2">
+              {cart.length > 0 && (
+                <button
+                  onClick={clearCart}
+                  className="flex items-center gap-1.5 px-2 py-1 bg-red-500/10 border border-red-500/20 hover:bg-red-500/20 text-red-400 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer"
+                  title="Clear Entire Cart"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Clear</span>
+                </button>
+              )}
+              {heldCarts.length > 0 && (
+                <button
+                  onClick={() => setShowHeldModal(true)}
+                  className="flex items-center gap-1.5 px-2 py-1 bg-amber-500/15 border border-amber-500/30 hover:bg-amber-500/20 text-amber-300 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer"
+                  title="Recall Suspended Carts"
+                >
+                  <FolderOpen className="w-3.5 h-3.5 text-amber-500" />
+                  <span>Recall ({heldCarts.length})</span>
+                </button>
+              )}
+              <span className="bg-accent text-white text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-widest shadow-lg">
+                {cart.length}
+              </span>
+            </div>
           </div>
-          <div className="flex items-center gap-2">
-            {heldCarts.length > 0 && (
-              <button
-                onClick={() => setShowHeldModal(true)}
-                className="flex items-center gap-1.5 px-2 py-1 bg-amber-500/15 border border-amber-500/30 hover:bg-amber-500/20 text-amber-300 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all cursor-pointer"
-                title="Recall Suspended Carts"
-              >
-                <FolderOpen className="w-3.5 h-3.5 text-amber-500" />
-                <span>Recall ({heldCarts.length})</span>
-              </button>
-            )}
-            <span className="bg-accent text-white text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-widest shadow-lg">
-              {cart.length}
-            </span>
+
+          {/* Sliding Tab Switcher */}
+          <div className="flex p-1 bg-black/40 rounded-xl border border-white/5 w-full">
+            <button
+              onClick={() => setCartView('items')}
+              className={cn(
+                "flex-1 py-2 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-2",
+                cartView === 'items' ? "bg-accent text-white shadow-lg shadow-accent/20" : "text-slate-500 hover:text-slate-300"
+              )}
+            >
+              <Package className="w-3.5 h-3.5" />
+              Items ({cart.length})
+            </button>
+            <button
+              onClick={() => setCartView('summary')}
+              className={cn(
+                "flex-1 py-2 rounded-lg text-[10px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-2",
+                cartView === 'summary' ? "bg-accent text-white shadow-lg shadow-accent/20" : "text-slate-500 hover:text-slate-300"
+              )}
+            >
+              <Ticket className="w-3.5 h-3.5" />
+              Summary
+            </button>
           </div>
         </header>
 
-        {heldCarts.length > 0 && (
-          <div className="p-3 mx-4 mt-4 bg-amber-500/5 border border-amber-500/20 rounded-2xl flex items-center justify-between text-amber-300">
-            <div className="flex items-center gap-2">
-              <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
-              </span>
-              <span className="text-[10px] font-bold uppercase tracking-wider">
-                {heldCarts.length} Suspended order{heldCarts.length > 1 ? 's' : ''} available
-              </span>
-            </div>
-            <button
-              onClick={() => setShowHeldModal(true)}
-              className="text-[9px] font-black uppercase tracking-wider text-amber-400 hover:text-white underline"
-            >
-              Review
-            </button>
-          </div>
-        )}
-
-        <div className="flex-1 overflow-auto bg-slate-900/20">
-          {cart.length === 0 ? (
-            <div className="h-full flex flex-col items-center justify-center p-12 opacity-20">
-              <Package2 className="w-16 h-16 text-slate-500 mb-6" />
-              <p className="text-xs font-bold uppercase tracking-[0.3em] text-center text-slate-400">Awaiting Signal</p>
-            </div>
-          ) : (
-            <div className="divide-y divide-white/5">
-              {cart.map((item) => (
-                <motion.div 
-                  initial={{ x: -10, opacity: 0 }}
-                  animate={{ x: 0, opacity: 1 }}
-                  key={item.variantId ? `${item.productId}-${item.variantId}` : item.productId} 
-                  className="p-6 group hover:bg-white/5 transition-all"
-                >
-                  <div className="flex justify-between items-start mb-4">
-                    <div className="flex flex-col">
-                      <span className="text-sm font-bold text-slate-100 leading-snug">
-                        {item.name}
+        <div className="flex-1 relative overflow-hidden bg-slate-900/20">
+          <AnimatePresence mode="wait">
+            {cartView === 'items' ? (
+              <motion.div 
+                key="items"
+                initial={{ x: -20, opacity: 0 }}
+                animate={{ x: 0, opacity: 1 }}
+                exit={{ x: 20, opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                className="absolute inset-0 overflow-auto divide-y divide-white/5 no-scrollbar"
+              >
+                {heldCarts.length > 0 && (
+                  <div className="p-3 mx-4 mt-4 bg-amber-500/5 border border-amber-500/20 rounded-2xl flex items-center justify-between text-amber-300">
+                    <div className="flex items-center gap-2">
+                      <span className="relative flex h-2 w-2">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
                       </span>
-                      {item.subCategory && (
-                        <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mt-0.5">
-                          {item.subCategory}
-                        </span>
-                      )}
-                      {item.variantName && (
-                        <span className="text-[9px] bg-accent/15 border border-accent/20 text-accent font-black uppercase px-2 py-0.5 rounded-full mt-2 w-fit block tracking-wider">
-                          {item.variantName}
-                        </span>
-                      )}
+                      <span className="text-[10px] font-bold uppercase tracking-wider">
+                        {heldCarts.length} Suspended order{heldCarts.length > 1 ? 's' : ''} available
+                      </span>
                     </div>
-                    <button onClick={() => removeFromCart(item.productId, item.variantId)} className="text-slate-600 hover:text-red-400 transition-colors p-1">
-                      <Trash2 className="w-4 h-4" />
+                    <button
+                      onClick={() => setShowHeldModal(true)}
+                      className="text-[9px] font-black uppercase tracking-wider text-amber-400 hover:text-white underline"
+                    >
+                      Review
                     </button>
                   </div>
-                  <div className="flex items-center justify-between gap-2 pt-1 border-t border-white/[0.03]">
-                    <div className="flex items-center gap-1.5 sm:gap-4 bg-slate-950 border border-white/10 p-0.5 sm:p-1 rounded-xl flex-shrink-0">
-                      <button 
-                        onClick={() => updateQuantity(item.productId, item.variantId, -1)}
-                        className="w-6 h-6 sm:w-8 sm:h-8 flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-all"
+                )}
+
+                {cart.length === 0 ? (
+                  <div className="h-full flex flex-col items-center justify-center p-12 opacity-20">
+                    <Package2 className="w-16 h-16 text-slate-500 mb-6" />
+                    <p className="text-xs font-bold uppercase tracking-[0.3em] text-center text-slate-400">Awaiting Signal</p>
+                  </div>
+                ) : (
+                  <div className="divide-y divide-white/5">
+                    {cart.map((item) => (
+                      <motion.div 
+                        initial={{ x: -10, opacity: 0 }}
+                        animate={{ x: 0, opacity: 1 }}
+                        key={item.variantId ? `${item.productId}-${item.variantId}` : item.productId} 
+                        className="p-6 group hover:bg-white/5 transition-all"
                       >
-                        <Minus className="w-3.5 h-3.5" />
+                        <div className="flex justify-between items-start mb-4">
+                          <div className="flex flex-col">
+                            <span className="text-sm font-bold text-slate-100 leading-snug">
+                              {item.name}
+                            </span>
+                            {item.subCategory && (
+                              <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest mt-0.5">
+                                {item.subCategory}
+                              </span>
+                            )}
+                            {item.variantName && (
+                              <span className="text-[9px] bg-accent/15 border border-accent/20 text-accent font-black uppercase px-2 py-0.5 rounded-full mt-2 w-fit block tracking-wider">
+                                {item.variantName}
+                              </span>
+                            )}
+                          </div>
+                          <button 
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              removeFromCart(item.productId, item.variantId);
+                            }} 
+                            className="text-slate-500 hover:text-red-500 hover:bg-red-500/10 p-2.5 rounded-xl transition-all cursor-pointer group/remove"
+                            title="Remove Item"
+                          >
+                            <Trash2 className="w-4 h-4 group-hover/remove:scale-110 transition-transform" />
+                          </button>
+                        </div>
+                        <div className="flex items-center justify-between gap-2 pt-1 border-t border-white/[0.03]">
+                          <div className="flex items-center gap-1.5 sm:gap-4 bg-slate-950 border border-white/10 p-0.5 sm:p-1 rounded-xl flex-shrink-0">
+                            <button 
+                              onClick={() => updateQuantity(item.productId, item.variantId, -1)}
+                              className="w-6 h-6 sm:w-8 sm:h-8 flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-all"
+                            >
+                              <Minus className="w-3.5 h-3.5" />
+                            </button>
+                            <span className="w-6 sm:w-8 text-center text-[10px] sm:text-sm font-bold text-slate-100">{item.quantity}</span>
+                            <button 
+                              onClick={() => updateQuantity(item.productId, item.variantId, 1)}
+                              className="w-6 h-6 sm:w-8 sm:h-8 flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-all"
+                            >
+                              <Plus className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                          <span className="text-sm sm:text-base md:text-lg font-bold text-slate-100 whitespace-nowrap flex-shrink-0">
+                            {formatCurrency(item.total, org?.currency)}
+                          </span>
+                        </div>
+                      </motion.div>
+                    ))}
+                  </div>
+                )}
+              </motion.div>
+            ) : (
+              <motion.div 
+                key="summary"
+                initial={{ x: 20, opacity: 0 }}
+                animate={{ x: 0, opacity: 1 }}
+                exit={{ x: -20, opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                className="absolute inset-0 overflow-auto p-6 space-y-8 no-scrollbar"
+              >
+                {/* Discount presets */}
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2">
+                    <Tag className="w-4 h-4 text-accent" />
+                    <label className="text-[10px] font-black text-white uppercase tracking-[0.2em]">Transaction Discount</label>
+                  </div>
+                  <div className="flex gap-1.5 items-center justify-between">
+                    {[0, 5, 10, 15, 20].map((rate) => (
+                      <button
+                        key={rate}
+                        onClick={() => {
+                          setDiscountPercent(rate);
+                          setActiveCoupon(null);
+                        }}
+                        className={cn(
+                          "flex-1 py-3 text-[11px] font-black rounded-xl border transition-all cursor-pointer",
+                          discountPercent === rate && !activeCoupon
+                            ? "bg-accent border-accent text-white shadow-lg shadow-accent/20"
+                            : "bg-white/5 border-white/5 text-slate-500 hover:bg-white/10"
+                        )}
+                      >
+                        {rate === 0 ? '0%' : `${rate}%`}
                       </button>
-                      <span className="w-6 sm:w-8 text-center text-[10px] sm:text-sm font-bold text-slate-100">{item.quantity}</span>
-                      <button 
-                        onClick={() => updateQuantity(item.productId, item.variantId, 1)}
-                        className="w-6 h-6 sm:w-8 sm:h-8 flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-all"
+                    ))}
+                  </div>
+                </div>
+
+                {/* Coupon / Promo Codes */}
+                <div className="space-y-4 border-t border-white/5 pt-8">
+                  <div className="flex items-center gap-2">
+                    <Ticket className="w-4 h-4 text-accent" />
+                    <label className="text-[10px] font-black text-white uppercase tracking-[0.2em]">Coupon Redemption</label>
+                  </div>
+                  
+                  <div className="flex gap-2">
+                    <input 
+                      type="text"
+                      placeholder="ENTER CODE..."
+                      value={couponInput}
+                      onChange={(e) => setCouponInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          handleApplyCoupon(couponInput);
+                        }
+                      }}
+                      className="flex-1 bg-slate-900 border border-white/10 rounded-xl px-4 py-3 text-xs text-slate-200 focus:outline-none focus:border-accent/50 transition-all font-mono uppercase"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => handleApplyCoupon(couponInput)}
+                      className="px-6 py-3 bg-accent text-white text-[11px] font-black rounded-xl transition-all cursor-pointer uppercase shadow-lg shadow-accent/10 hover:scale-[1.02]"
+                    >
+                      Apply
+                    </button>
+                  </div>
+
+                  {activeCoupon && (
+                    <div className="flex items-center justify-between p-4 bg-accent/10 border border-accent/20 rounded-2xl animate-fade-in text-accent">
+                      <div className="flex items-center gap-3">
+                        <Sparkles className="w-5 h-5 animate-pulse text-accent" />
+                        <div className="text-left">
+                          <span className="text-[11px] font-black font-mono leading-none block uppercase">{activeCoupon}</span>
+                          <span className="text-[9px] text-slate-400 font-bold uppercase tracking-wider block mt-1">
+                            {COUPONS[activeCoupon]?.description || 'Custom Coupon Applied'}
+                          </span>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleRemoveCoupon}
+                        className="p-2 rounded-xl hover:bg-white/10 text-slate-400 hover:text-white transition-all cursor-pointer"
                       >
-                        <Plus className="w-3.5 h-3.5" />
+                        <X className="w-4 h-4" />
                       </button>
                     </div>
-                    <span className="text-sm sm:text-base md:text-lg font-bold text-slate-100 whitespace-nowrap flex-shrink-0">
-                      {formatCurrency(item.total, org?.currency)}
-                    </span>
+                  )}
+
+                  {/* Quick Coupon Codes selector list */}
+                  <div className="flex flex-wrap gap-1 items-center pt-1">
+                    <span className="text-[8px] font-bold text-slate-500 uppercase tracking-widest flex items-center pr-1 select-none">Promos:</span>
+                    {Object.keys(COUPONS).map(c => (
+                      <button
+                        key={c}
+                        type="button"
+                        onClick={() => handleApplyCoupon(c)}
+                        className={cn(
+                          "text-[9px] font-mono px-1.5 py-0.5 rounded transition-all select-none cursor-pointer",
+                          activeCoupon === c
+                            ? "bg-accent/20 border border-accent/30 text-accent font-bold"
+                            : "bg-white/5 hover:bg-white/10 text-slate-400 border border-white/5"
+                        )}
+                      >
+                        {c}
+                      </button>
+                    ))}
                   </div>
-                </motion.div>
-              ))}
-            </div>
-          )}
+                </div>
+
+                {/* Sub-financials */}
+                <div className="border-t border-white/5 pt-8 space-y-4">
+                  <div className="flex justify-between items-center px-1">
+                    <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Subtotal</span>
+                    <span className="text-sm font-bold text-slate-100">{formatCurrency(subtotal, org?.currency)}</span>
+                  </div>
+                  <div className="flex justify-between items-center px-1">
+                    <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Tax ({org?.taxRate || 0}%)</span>
+                    <span className="text-sm font-bold text-slate-100">{formatCurrency(tax, org?.currency)}</span>
+                  </div>
+                  {discountAmount > 0 && (
+                    <div className="flex justify-between items-center px-1 text-accent">
+                      <span className="text-[10px] font-black uppercase tracking-widest">Savings Applied</span>
+                      <span className="text-sm font-black">-{formatCurrency(discountAmount, org?.currency)}</span>
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
 
-        {/* Footer / Totals */}
-        <div className="p-6 lg:p-8 bg-black/20 border-t border-white/10 space-y-4 lg:space-y-6">
-          
-          {/* Discount presets */}
-          {cart.length > 0 && (
-            <div className="space-y-2 pb-2 border-b border-white/5 animate-fade-in-down">
-              <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest block">Transaction Discount Rate</label>
-              <div className="flex gap-1.5 items-center justify-between">
-                {[0, 5, 10, 15, 20].map((rate) => (
-                  <button
-                    key={rate}
-                    onClick={() => {
-                      setDiscountPercent(rate);
-                      setActiveCoupon(null);
-                    }}
-                    className={cn(
-                      "flex-1 py-1.5 text-[10px] font-bold rounded-lg border transition-all cursor-pointer",
-                      discountPercent === rate && !activeCoupon
-                        ? "bg-amber-500/20 border-amber-500 text-amber-300 shadow-md"
-                        : "bg-white/5 border-white/5 text-slate-450 hover:bg-white/10"
-                    )}
-                  >
-                    {rate === 0 ? 'None' : `${rate}%`}
-                  </button>
-                ))}
-              </div>
+        {/* Footer / Permanent Totals */}
+        <div className="p-6 lg:p-8 bg-black/40 border-t border-white/10 space-y-6">
+          <div className="flex justify-between items-end">
+            <div className="flex flex-col gap-1">
+              <span className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Payable Amount</span>
+              <span className="text-3xl lg:text-4xl font-black text-white tracking-tighter leading-none">
+                {formatCurrency(total, org?.currency)}
+              </span>
             </div>
-          )}
-
-          {/* Coupon / Promo Codes */}
-          {cart.length > 0 && (
-            <div className="space-y-2 pb-3 border-b border-white/5 animate-fade-in">
-              <label className="text-[9px] font-black text-slate-500 uppercase tracking-widest block">Promo / Coupon Code</label>
-              
-              <div className="flex gap-2">
-                <input 
-                  type="text"
-                  placeholder="Enter code (e.g. WELCOME10)"
-                  value={couponInput}
-                  onChange={(e) => setCouponInput(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault();
-                      handleApplyCoupon(couponInput);
-                    }
-                  }}
-                  className="flex-1 bg-slate-900 border border-white/10 rounded-xl px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-amber-500/50 transition-all font-mono uppercase"
-                />
-                <button
-                  type="button"
-                  onClick={() => handleApplyCoupon(couponInput)}
-                  className="px-3 py-1.5 bg-amber-500/20 border border-amber-500/30 hover:bg-amber-500 text-amber-300 hover:text-white text-xs font-bold rounded-xl transition-all cursor-pointer"
-                >
-                  Apply
-                </button>
-              </div>
-
-              {/* Active coupon pill */}
-              {activeCoupon && (
-                <div className="flex items-center justify-between p-2 mt-2 bg-amber-500/10 border border-amber-500/20 rounded-xl select-none animate-fade-in text-amber-300">
-                  <div className="flex items-center gap-2">
-                    <Sparkles className="w-3.5 h-3.5 animate-pulse text-amber-400" />
-                    <div className="text-left">
-                      <span className="text-[10px] font-black font-mono leading-none block">{activeCoupon}</span>
-                      <span className="text-[8px] text-slate-400 font-bold uppercase tracking-wider block mt-0.5">
-                        {COUPONS[activeCoupon]?.description || `${discountPercent}% Off Custom Coupon`}
-                      </span>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={handleRemoveCoupon}
-                    className="p-1 rounded-lg hover:bg-white/10 text-slate-400 hover:text-white transition-all cursor-pointer"
-                    title="Remove Coupon"
-                  >
-                    <X className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              )}
-
-              {/* Quick Coupon Codes selector list */}
-              <div className="flex flex-wrap gap-1 items-center pt-1">
-                <span className="text-[8px] font-bold text-slate-500 uppercase tracking-widest flex items-center pr-1 select-none">Promos:</span>
-                {Object.keys(COUPONS).map(c => (
-                  <button
-                    key={c}
-                    type="button"
-                    onClick={() => handleApplyCoupon(c)}
-                    className={cn(
-                      "text-[9px] font-mono px-1.5 py-0.5 rounded transition-all select-none cursor-pointer",
-                      activeCoupon === c
-                        ? "bg-amber-500/20 border border-amber-500/30 text-amber-300 font-bold"
-                        : "bg-white/5 hover:bg-white/10 text-slate-400 border border-white/5"
-                    )}
-                  >
-                    {c}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          <div className="space-y-2 opacity-70">
-            <div className="flex justify-between text-[10px] lg:text-xs font-bold text-slate-400 uppercase tracking-widest">
-              <span>Subtotal</span>
-              <span>{formatCurrency(subtotal, org?.currency)}</span>
-            </div>
-            {discountPercent > 0 && (
-              <div className="flex justify-between text-[10px] lg:text-xs font-bold text-amber-400 uppercase tracking-widest transition-all">
-                <span>Discount (-{discountPercent}%)</span>
-                <span>-{formatCurrency(discountAmount, org?.currency)}</span>
-              </div>
+            {cartView === 'items' && cart.length > 0 && (
+              <button 
+                onClick={() => setCartView('summary')}
+                className="group flex items-center gap-2 px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-[10px] font-black text-white uppercase tracking-widest hover:bg-accent hover:border-accent transition-all"
+              >
+                Checkout Details <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+              </button>
             )}
-            <div className="flex justify-between text-[10px] lg:text-xs font-bold text-slate-400 uppercase tracking-widest">
-              <span>Tax ({org?.taxRate || 0}%)</span>
-              <span>{formatCurrency(tax, org?.currency)}</span>
-            </div>
-          </div>
-          
-          <div className="flex justify-between items-end pt-2 lg:pt-4 border-t border-white/5">
-            <span className="text-[10px] lg:text-xs font-black text-accent uppercase tracking-[0.3em]">Total</span>
-            <span className="text-2xl lg:text-4xl font-black text-white tracking-tighter">
-              {formatCurrency(total, org?.currency)}
-            </span>
           </div>
 
-          <div className="grid grid-cols-3 gap-3 mt-4">
+          <div className="grid grid-cols-3 gap-3">
             <button 
               onClick={() => setPaymentMethod('cash')}
               className={cn(
@@ -1134,16 +1240,17 @@ export function POSEngine() {
               <span className="text-[10px] font-bold uppercase tracking-widest text-center">Hold</span>
             </button>
           </div>
-
+          
           <Button 
+            disabled={cart.length === 0 || processing}
             onClick={() => {
               if (paymentMethod === 'cash') setShowTenderModal(true);
               else handleCheckout();
             }} 
-            disabled={cart.length === 0 || processing}
-            className="w-full h-16 bg-accent hover:bg-accent-hover text-white rounded-2xl font-black text-xl shadow-2xl shadow-accent/40 uppercase tracking-widest mt-4"
+            className="w-full h-16 lg:h-20 text-sm lg:text-base font-black uppercase tracking-[0.2em] bg-accent hover:bg-accent-light text-white shadow-2xl shadow-accent/30 transition-all rounded-3xl flex items-center justify-center gap-4 active:scale-[0.98]"
           >
-            {processing ? 'Transmitting...' : 'Execute Transaction'}
+            <CreditCard className="w-6 h-6" />
+            {processing ? 'Processing...' : 'Complete Transaction'}
           </Button>
         </div>
       </div>
@@ -1725,6 +1832,26 @@ export function POSEngine() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Printable Receipt Area */}
+      <div className="print-only">
+        {lastSale && (
+          <ThermalReceipt 
+            org={org}
+            items={lastSale.items}
+            subtotal={lastSale.subtotal}
+            tax={lastSale.tax}
+            discountAmount={lastSale.discountAmount}
+            couponUsed={lastSale.couponUsed}
+            total={lastSale.total}
+            paymentMethod={lastSale.paymentMethod}
+            cashTendered={lastSale.cashTendered}
+            changeDue={lastSale.changeDue}
+            receiptId={lastSale.id}
+            timestamp={lastSale.timestamp}
+          />
+        )}
+      </div>
     </div>
   );
 }

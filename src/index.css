@@ -43,3 +43,38 @@
 .glow-primary {
   box-shadow: 0 0 25px var(--accent-color-muted, rgba(16, 185, 129, 0.3));
 }
+
+@layer utilities {
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  @media print {
+    .no-print {
+      display: none !important;
+    }
+    
+    body {
+      background: white !important;
+      color: black !important;
+      background-image: none !important;
+    }
+
+    .print-only {
+      display: block !important;
+    }
+
+    @page {
+      margin: 0;
+      size: 80mm auto;
+    }
+  }
+
+  .print-only {
+    display: none;
+  }
+}
