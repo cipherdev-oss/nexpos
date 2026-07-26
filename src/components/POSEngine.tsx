@@ -1178,6 +1178,11 @@ export function POSEngine() {
                     placeholder="Enter amount..."
                     value={cashTendered}
                     onChange={(e) => setCashTendered(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && cashTendered && parseFloat(cashTendered) >= total && !processing) {
+                        handleCheckout();
+                      }
+                    }}
                     className="text-2xl h-16 font-bold"
                   />
                 </div>
