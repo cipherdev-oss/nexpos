@@ -4,7 +4,7 @@ import { useAuth } from '../lib/AuthContext';
 import { db, handleFirestoreError, OperationType, Product, Category, ProductVariant } from '../lib/firebase';
 import { collection, query, onSnapshot, addDoc, updateDoc, deleteDoc, doc, serverTimestamp, orderBy } from 'firebase/firestore';
 import { Button, Card, Input, MonospaceValue, cn, formatCurrency } from './UI';
-import { Plus, Search, Package, AlertTriangle, Edit2, Trash2, X, Check, Filter, ChevronDown, ChevronUp, BookOpen, HelpCircle, Info } from 'lucide-react';
+import { Plus, Search, Package, AlertTriangle, Edit2, Trash2, X, Check, Filter, ChevronDown, ChevronUp, BookOpen, HelpCircle, Info, Sparkles } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 export function InventoryList() {
@@ -303,15 +303,27 @@ export function InventoryList() {
       const { id, ...sanitizedData } = formData;
       let cleanData: any;
 
+      // Handle pending variant that might not have been "Added" to the list yet
+      let currentVariants = [...variantsList];
+      if (hasVariants && newVariant.name.trim()) {
+        const alreadyExists = currentVariants.some(v => v.name === newVariant.name);
+        if (!alreadyExists) {
+          currentVariants.push({
+            ...newVariant,
+            id: 'VAR-' + Math.random().toString(36).substring(2, 7).toUpperCase()
+          });
+        }
+      }
+
       if (hasVariants) {
-        if (variantsList.length === 0) {
+        if (currentVariants.length === 0) {
           alert('Asset configured to have variants must possess at least one variation record.');
           return;
         }
-        const totalStock = variantsList.reduce((acc, v) => acc + Number(v.stock), 0);
-        const minPrice = Math.min(...variantsList.map(v => v.price));
+        const totalStock = currentVariants.reduce((acc, v) => acc + Number(v.stock), 0);
+        const minPrice = Math.min(...currentVariants.map(v => v.price));
         // Average or maximum cost
-        const avgCost = variantsList.reduce((acc, v) => acc + v.cost, 0) / variantsList.length;
+        const avgCost = currentVariants.reduce((acc, v) => acc + v.cost, 0) / currentVariants.length;
 
         cleanData = {
           ...sanitizedData,
@@ -320,7 +332,7 @@ export function InventoryList() {
           stock: totalStock,
           minStock: Number(sanitizedData.minStock) || 0,
           hasVariants: true,
-          variants: variantsList,
+          variants: currentVariants,
           isGuideItem: formData.isGuideItem || false
         };
       } else {
@@ -970,94 +982,131 @@ export function InventoryList() {
                     </div>
                   </>
                 ) : (
-                  <div className="md:col-span-2 p-5 bg-white/5 border border-white/10 rounded-2xl space-y-4">
-                    <h4 className="text-xs font-black text-white uppercase tracking-widest flex items-center gap-2 border-b border-white/10 pb-2 mb-2">
-                      <Package className="w-4 h-4 text-accent" />
+                  <div className="md:col-span-2 p-6 bg-accent/5 border border-accent/20 rounded-3xl space-y-6">
+                    <h4 className="text-sm font-black text-white uppercase tracking-[0.2em] flex items-center gap-3 border-b border-white/10 pb-4 mb-2">
+                      <Package className="w-5 h-5 text-accent" />
                       Variations Config ({variantsList.length})
                     </h4>
                     
                     {variantsList.length > 0 ? (
-                      <div className="max-h-[160px] overflow-y-auto space-y-2 pr-1 no-scrollbar">
-                        {variantsList.map((v) => (
-                          <div key={v.id} className="p-3 bg-white/5 border border-white/5 rounded-xl flex items-center justify-between text-[11px] gap-2">
-                            <div className="flex-1 min-w-0">
-                              <p className="font-bold text-white truncate">{v.name}</p>
-                              <div className="flex items-center gap-2 text-[9px] text-slate-500 uppercase font-bold mt-1">
-                                <span>SKU: {v.sku || '---'}</span>
-                                <span>•</span>
-                                <span>Stock: {v.stock}</span>
+                      <div className="bg-slate-950/40 rounded-2xl border border-white/5 overflow-hidden">
+                        <div className="p-3 border-b border-white/10 bg-white/5 grid grid-cols-4 text-[9px] font-black text-slate-500 uppercase tracking-[0.2em]">
+                          <span>Variant Name</span>
+                          <span>Stock</span>
+                          <span>Price</span>
+                          <span className="text-right px-2">Actions</span>
+                        </div>
+                        <div className="max-h-60 overflow-y-auto divide-y divide-white/5 no-scrollbar">
+                          {variantsList.map((v) => (
+                            <div key={v.id} className="p-4 grid grid-cols-4 items-center group hover:bg-white/[0.02] transition-colors">
+                              <div className="flex flex-col min-w-0 pr-2">
+                                <span className="text-xs font-bold text-white truncate">{v.name}</span>
+                                <span className="text-[9px] font-mono text-slate-500">{v.sku || 'No SKU'}</span>
+                              </div>
+                              <span className="text-xs font-bold text-slate-300">{v.stock} pcs</span>
+                              <span className="text-xs font-bold text-accent">{formatCurrency(v.price, org?.currency)}</span>
+                              <div className="flex justify-end pr-2">
+                                <button 
+                                  type="button"
+                                  onClick={() => setVariantsList(prev => prev.filter(item => item.id !== v.id))}
+                                  className="p-2 text-slate-500 hover:text-red-400 transition-colors"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
                               </div>
                             </div>
-                            <div className="text-right flex items-center gap-3">
-                              <span className="font-bold text-accent">{formatCurrency(v.price, org?.currency)}</span>
-                              <button 
-                                type="button"
-                                onClick={() => setVariantsList(prev => prev.filter(item => item.id !== v.id))}
-                                className="text-slate-600 hover:text-red-400 p-1"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            </div>
-                          </div>
-                        ))}
+                          ))}
+                        </div>
                       </div>
                     ) : (
-                      <p className="text-[10px] text-amber-500/80 italic uppercase">Please register at least one variation context below.</p>
+                      <div className="p-8 border-2 border-dashed border-white/5 rounded-3xl flex flex-col items-center justify-center text-center bg-white/[0.01]">
+                        <div className="w-12 h-12 rounded-2xl bg-white/5 flex items-center justify-center mb-4">
+                          <Sparkles className="w-6 h-6 text-slate-600" />
+                        </div>
+                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">No Variations Defined</p>
+                        <p className="text-[9px] text-slate-600 mt-2 max-w-[200px]">Add specific editions, sizes, or colors below.</p>
+                      </div>
                     )}
 
                     {/* Add Variant Formlet nested in parent card */}
-                    <div className="border-t border-white/10 pt-4 space-y-3">
-                      <span className="text-[9px] font-black text-accent uppercase tracking-[0.2em] block">Add Custom variation</span>
-                      <div className="grid grid-cols-2 gap-2">
-                        <Input 
-                          placeholder="Variant Name (e.g. 120p - Hardcover)" 
-                          value={newVariant.name}
-                          onChange={e => setNewVariant(prev => ({ ...prev, name: e.target.value }))}
-                          className="h-9 text-xs"
-                        />
-                        <Input 
-                          placeholder="Barcode (UPC/EAN)" 
-                          value={newVariant.barcode}
-                          onChange={e => setNewVariant(prev => ({ ...prev, barcode: e.target.value }))}
-                          className="h-9 text-xs"
-                        />
-                        <Input 
-                          placeholder="SKU" 
-                          value={newVariant.sku}
-                          onChange={e => setNewVariant(prev => ({ ...prev, sku: e.target.value }))}
-                          className="h-9 text-xs"
-                        />
-                        <div className="flex gap-1.5">
-                          <Input 
-                            type="number"
-                            placeholder="Price" 
-                            value={newVariant.price || ''}
-                            onChange={e => setNewVariant(prev => ({ ...prev, price: parseFloat(e.target.value) || 0 }))}
-                            className="h-9 text-xs flex-1"
-                          />
-                          <Input 
-                            type="number"
-                            placeholder="Cost" 
-                            value={newVariant.cost || ''}
-                            onChange={e => setNewVariant(prev => ({ ...prev, cost: parseFloat(e.target.value) || 0 }))}
-                            className="h-9 text-xs flex-1"
-                          />
-                        </div>
+                    <div className="border-t border-white/10 pt-6 space-y-5">
+                      <div className="flex items-center gap-3">
+                        <Plus className="w-4 h-4 text-accent" />
+                        <span className="text-[10px] font-black text-white uppercase tracking-[0.2em] block">Add Custom variation</span>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <Input 
-                          type="number"
-                          placeholder="Stock Level" 
-                          value={newVariant.stock || ''}
-                          onChange={e => setNewVariant(prev => ({ ...prev, stock: parseInt(e.target.value) || 0 }))}
-                          className="h-9 text-xs w-28"
-                        />
+                      
+                      <div className="space-y-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className="space-y-1.5">
+                            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-1">Variant Name</label>
+                            <Input 
+                              placeholder="e.g. Blue / Large" 
+                              value={newVariant.name}
+                              onChange={e => setNewVariant(prev => ({ ...prev, name: e.target.value }))}
+                              className="h-11 text-xs bg-slate-900 border-white/5"
+                            />
+                          </div>
+                          <div className="space-y-1.5">
+                            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-1">Barcode (Optional)</label>
+                            <Input 
+                              placeholder="Barcode (UPC/EAN)" 
+                              value={newVariant.barcode}
+                              onChange={e => setNewVariant(prev => ({ ...prev, barcode: e.target.value }))}
+                              className="h-11 text-xs bg-slate-900 border-white/5"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                          <div className="space-y-1.5">
+                            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-1">SKU</label>
+                            <Input 
+                              placeholder="SKU" 
+                              value={newVariant.sku}
+                              onChange={e => setNewVariant(prev => ({ ...prev, sku: e.target.value }))}
+                              className="h-11 text-xs bg-slate-900 border-white/5"
+                            />
+                          </div>
+                          <div className="space-y-1.5">
+                            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-1">Price</label>
+                            <Input 
+                              type="number"
+                              step="0.01"
+                              placeholder="0.00" 
+                              value={newVariant.price || ''}
+                              onChange={e => setNewVariant(prev => ({ ...prev, price: parseFloat(e.target.value) || 0 }))}
+                              className="h-11 text-xs bg-slate-900 border-white/5"
+                            />
+                          </div>
+                          <div className="space-y-1.5">
+                            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-1">Cost</label>
+                            <Input 
+                              type="number"
+                              step="0.01"
+                              placeholder="0.00" 
+                              value={newVariant.cost || ''}
+                              onChange={e => setNewVariant(prev => ({ ...prev, cost: parseFloat(e.target.value) || 0 }))}
+                              className="h-11 text-xs bg-slate-900 border-white/5"
+                            />
+                          </div>
+                          <div className="space-y-1.5">
+                            <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest px-1">Stock</label>
+                            <Input 
+                              type="number"
+                              placeholder="0" 
+                              value={newVariant.stock || ''}
+                              onChange={e => setNewVariant(prev => ({ ...prev, stock: parseInt(e.target.value) || 0 }))}
+                              className="h-11 text-xs bg-slate-900 border-white/5"
+                            />
+                          </div>
+                        </div>
+
                         <Button
                           type="button"
                           variant="outline"
                           onClick={() => {
                             if (!newVariant.name) {
-                              alert('Please provide a name/description for this variation (e.g., 200 pages / Paperback)');
+                              alert('Please provide a name/description for this variation.');
                               return;
                             }
                             setVariantsList(prev => [...prev, {
@@ -1066,9 +1115,9 @@ export function InventoryList() {
                             }]);
                             setNewVariant({ name: '', sku: '', barcode: '', price: 0, cost: 0, stock: 0 });
                           }}
-                          className="h-9 text-xs flex-1 border-accent/20 hover:border-accent text-accent"
+                          className="w-full h-12 text-xs font-bold border-accent/20 hover:border-accent text-accent bg-accent/5 hover:bg-accent hover:text-white transition-all shadow-lg shadow-accent/5"
                         >
-                          <Plus className="w-3.5 h-3.5 mr-1" /> Add
+                          <Plus className="w-4 h-4 mr-2" /> Add Variation To List
                         </Button>
                       </div>
                     </div>
